@@ -1,0 +1,121 @@
+# **📌 Phase 2: UI/UX Design & Wireframing**  
+This phase focuses on designing **wireframes and UI components** for both the **Workers UI (Mobile Web)** and **Admin UI (Desktop Web)**. The goal is to create an intuitive, **fast, and mobile-friendly** experience for workers and a **powerful management interface** for admins.
+
+---
+
+## **🔹 2.1 UI Design Goals**
+✅ **Fast & Simple UI** – Minimal clicks for workers to perform tasks  
+✅ **Mobile-Optimized UI** – Fully responsive for phone-based scanning  
+✅ **Admin Dashboard** – Clear data visualization for quick decision-making  
+✅ **Role-Based Access** – Workers manage shipments; Admins get full control  
+✅ **Dark & Light Mode** – Better usability in different lighting conditions  
+
+---
+
+## **🔹 2.2 Wireframes & UI Flow**
+Here’s the breakdown of **key UI screens** for both roles.
+
+---
+
+### **📌 1️⃣ Workers UI (Mobile Web)**
+💡 **Optimized for fast scanning & quick inventory updates**  
+**Navigation:**
+- **Home**
+- **Scan & Ship**
+- **Receive Returned**
+- **Send for Refill**
+- **Receive Refilled**
+- **Shipment History**
+
+#### **1️⃣ Home Screen (Dashboard)**
+- **Quick Action Buttons:**  
+  ✅ Scan & Ship Cylinders  
+  ✅ Receive Returned Cylinders  
+  ✅ Send for Refill  
+  ✅ Receive Refilled Cylinders  
+  ✅ View Shipment History  
+- **Live Cylinder Count** (Available, In Refill, Sent, Returned)
+
+#### **2️⃣ Scan & Ship Cylinders**
+1️⃣ Tap "Scan & Ship"  
+2️⃣ Open phone camera (Web-based QR scanning)  
+3️⃣ Scan multiple QR codes  
+4️⃣ Select receiving company  
+5️⃣ Confirm shipment  
+
+#### **3️⃣ Receive Returned Cylinders**
+1️⃣ Tap "Receive Returned"  
+2️⃣ Scan QR codes of empty cylinders  
+3️⃣ Confirm return  
+
+#### **4️⃣ Send Cylinders for Refill**
+1️⃣ Tap "Send for Refill"  
+2️⃣ Scan empty cylinders  
+3️⃣ Select refill station  
+4️⃣ Confirm  
+
+#### **5️⃣ Receive Refilled Cylinders**
+1️⃣ Tap "Receive Refilled"  
+2️⃣ Scan refilled cylinders  
+3️⃣ Confirm receipt  
+
+#### **6️⃣ Shipment & Inventory History**
+- View **past shipments**  
+- **Filter by date, worker, status**  
+
+---
+
+### **📌 2️⃣ Admin UI (Desktop Web)**
+💡 **Optimized for tracking, analytics & inventory control**  
+**Navigation:**
+- **Dashboard**
+- **Manage Shipments**
+- **Track Returns & Refills**
+- **Generate Reports**
+- **Cylinder Management**
+- **Workers & Permissions**
+
+#### **1️⃣ Admin Dashboard**
+✅ **Total Cylinders Summary:** Available, Sent, In Refill, Pending Returns  
+✅ **Live Shipment Updates (Worker-wise tracking)**  
+✅ **Delayed Returns Alerts**  
+✅ **Quick Access to Reports**  
+
+#### **2️⃣ Manage Cylinder Shipments**
+✅ **View all outgoing shipments**  
+✅ **Filter by worker, company, date, status**  
+✅ **Mark shipments as completed**  
+
+#### **3️⃣ Track Returned & Refilled Cylinders**
+✅ **Monitor pending refills & track worker activity**  
+✅ **See refill station performance**  
+
+#### **4️⃣ Generate Reports**
+✅ **Export cylinder movement history**  
+✅ **Track shipment usage trends**  
+✅ **Analyze worker efficiency**  
+
+#### **5️⃣ Cylinder Management**
+✅ **Add New Cylinders (Auto-generate QR code)**  
+✅ **Re-print QR Codes (Download/Print label)**  
+✅ **Trash Cylinders (Mark as removed)**  
+
+#### **6️⃣ Worker Management**
+✅ **Assign permissions**  
+✅ **View shipment logs per worker**  
+✅ **Analyze performance & trends**  
+
+---
+
+## **🔹 2.3 UI Framework & Components**
+| **Feature** | **Technology** |
+|------------|---------------|
+| **UI Library** | Tailwind CSS / MUI (Material-UI) |
+| **Navigation** | React Router |
+| **State Management** | Redux / Context API |
+| **QR Code Scanning** | `navigator.mediaDevices.getUserMedia` API |
+| **QR Code Generation** | qrcode.react |
+| **Tables & Filters** | React Table |
+| **Charts & Analytics** | Chart.js / D3.js |
+
+

@@ -1,0 +1,170 @@
+Here are the **most important PostgreSQL commands** you will need while working with your **`gas_cylinders`** database.
+
+---
+
+# **📌 Basic Database Commands**
+### **1️⃣ Switch to PostgreSQL CLI**
+```sh
+sudo -u postgres psql
+```
+
+### **2️⃣ Connect to Your Database**
+```sql
+\c gas_cylinders;
+```
+
+### **3️⃣ List All Databases**
+```sql
+\l
+```
+
+### **4️⃣ List All Users/Roles**
+```sql
+\du
+```
+
+### **5️⃣ Show Tables in the Database**
+```sql
+\dt
+```
+
+### **6️⃣ Exit PostgreSQL CLI**
+```sh
+\q
+```
+
+---
+
+# **📌 User & Permissions Management**
+### **1️⃣ Create a New User**
+```sql
+CREATE USER new_user WITH ENCRYPTED PASSWORD 'newpassword';
+```
+
+### **2️⃣ Grant User Access to Database**
+```sql
+GRANT ALL PRIVILEGES ON DATABASE gas_cylinders TO new_user;
+```
+
+### **3️⃣ Change User Password**
+```sql
+ALTER USER gas_user WITH PASSWORD 'newsecurepassword';
+```
+
+### **4️⃣ Delete a User**
+```sql
+DROP USER gas_user;
+```
+
+---
+
+# **📌 Table Management**
+### **1️⃣ Create a New Table (Example: Cylinders Table)**
+```sql
+CREATE TABLE cylinders (
+    id SERIAL PRIMARY KEY,
+    qr_code VARCHAR(255) UNIQUE NOT NULL,
+    status VARCHAR(50) CHECK(status IN ('available', 'sent', 'returned', 'in_refill', 'trashed')),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### **2️⃣ List All Tables**
+```sql
+\dt
+```
+
+### **3️⃣ Describe a Table Structure**
+```sql
+\d cylinders
+```
+
+### **4️⃣ Delete a Table**
+```sql
+DROP TABLE cylinders;
+```
+
+---
+
+# **📌 Insert, Update, Delete Data**
+### **1️⃣ Insert Data into a Table**
+```sql
+INSERT INTO cylinders (qr_code, status) VALUES ('12345ABC', 'available');
+```
+
+### **2️⃣ View All Data in a Table**
+```sql
+SELECT * FROM cylinders;
+```
+
+### **3️⃣ Update Data in a Table**
+```sql
+UPDATE cylinders SET status = 'sent' WHERE qr_code = '12345ABC';
+```
+
+### **4️⃣ Delete Data from a Table**
+```sql
+DELETE FROM cylinders WHERE qr_code = '12345ABC';
+```
+
+---
+
+# **📌 Querying Data**
+### **1️⃣ Select Specific Columns**
+```sql
+SELECT qr_code, status FROM cylinders;
+```
+
+### **2️⃣ Filter Data with Conditions**
+```sql
+SELECT * FROM cylinders WHERE status = 'available';
+```
+
+### **3️⃣ Count Records**
+```sql
+SELECT COUNT(*) FROM cylinders WHERE status = 'available';
+```
+
+### **4️⃣ Sort Data**
+```sql
+SELECT * FROM cylinders ORDER BY created_at DESC;
+```
+
+### **5️⃣ Find Data Using Pattern Matching**
+```sql
+SELECT * FROM cylinders WHERE qr_code LIKE '123%';
+```
+
+---
+
+# **📌 Indexing & Performance Optimization**
+### **1️⃣ Create an Index on a Column**
+```sql
+CREATE INDEX idx_qr_code ON cylinders(qr_code);
+```
+
+### **2️⃣ Remove an Index**
+```sql
+DROP INDEX idx_qr_code;
+```
+
+### **3️⃣ Analyze Table Performance**
+```sql
+EXPLAIN ANALYZE SELECT * FROM cylinders WHERE qr_code = '12345ABC';
+```
+
+---
+
+# **📌 Backup & Restore**
+### **1️⃣ Backup the Database**
+Run this command from the terminal:
+```sh
+pg_dump -U gas_user -W -F c -b -v -f gas_cylinders_backup.sql gas_cylinders
+```
+
+### **2️⃣ Restore a Database from Backup**
+```sh
+pg_restore -U gas_user -d gas_cylinders -v gas_cylinders_backup.sql
+```
+
+---

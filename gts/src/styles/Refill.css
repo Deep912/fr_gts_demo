@@ -1,0 +1,99 @@
+/* 🔹 Main Card */
+.refill-card {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    background: #ffffff;
+    transition: all 0.3s ease-in-out;
+  }
+  
+  /* 🔹 Title */
+  .refill-title {
+    text-align: center;
+    font-weight: bold;
+    color: #1890ff;
+    margin-bottom: 20px;
+  }
+  
+  /* 🔹 Fetch Button */
+  .fetch-button {
+    width: 100%;
+    margin-bottom: 20px;
+    background-color: #1890ff !important;
+    color: white !important;
+    font-weight: bold;
+    border: none !important;
+    padding: 12px 0 !important;
+    transition: all 0.3s ease-in-out;
+  }
+  
+  .fetch-button:hover {
+    background-color: #40a9ff !important;
+    transform: scale(1.02);
+  }
+  
+  /* 🔹 Cylinder List */
+  .cylinder-container {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  
+  /* 🔹 Cylinder Cards */
+  .cylinder-card {
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease-in-out;
+    cursor: pointer;
+    text-align: center;
+    background: #f8f9fa;
+  }
+  
+  .cylinder-card:hover {
+    transform: scale(1.05);
+    background: #e6f7ff;
+  }
+  
+  .cylinder-card.selected {
+    background: #1890ff !important;
+    color: white !important;
+    border: 2px solid #0056b3 !important;
+  }
+  
+  /* 🔹 Cylinder Text */
+  .cylinder-text {
+    font-size: 14px;
+    font-weight: bold;
+  }
+  
+  /* 🔹 No Cylinders Message */
+  .no-cylinders {
+    display: block;
+    text-align: center;
+    margin-top: 20px;
+    color: gray;
+    font-size: 16px;
+  }
+  
+  /* 🔹 Confirm Button */
+  .refill-button {
+    width: 100%;
+    margin-top: 20px;
+    background-color: #52c41a !important;
+    color: white !important;
+    font-weight: bold;
+    border: none !important;
+    padding: 14px 0 !important;
+    transition: all 0.3s ease-in-out;
+  }
+  
+  .refill-button:hover {
+    background-color: #73d13d !important;
+    transform: scale(1.02);
+  }
+  

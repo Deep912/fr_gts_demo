@@ -1,0 +1,88 @@
+/* ===== Admin Layout Styles ===== */
+
+.admin-sidebar {
+    background: #001529; /* Dark theme for sidebar */
+    color: white;
+  }
+  
+  .admin-logo {
+    color: white;
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+    padding: 15px;
+  }
+  
+  .admin-header {
+    background: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .header-left {
+    font-size: 16px;
+    font-weight: bold;
+  }
+  
+  .admin-content {
+    padding: 20px;
+    background: #f5f5f5;
+    min-height: 100vh;
+  }
+  
+  /* ===== Dashboard Stats Cards ===== */
+  
+  .admin-stat-card {
+    text-align: center;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease-in-out;
+  }
+  
+  .admin-stat-card:hover {
+    transform: scale(1.05);
+  }
+  
+  .admin-stat-card h4 {
+    color: #1890ff;
+    margin-bottom: 10px;
+  }
+  
+  .admin-stat-card span {
+    font-size: 22px;
+    font-weight: bold;
+    color: #333;
+  }
+  
+  /* ===== Recent Transactions Card ===== */
+  
+  .recent-transactions-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+  }
+  
+  .recent-transactions-card h4 {
+    color: #1890ff;
+    margin-bottom: 15px;
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .admin-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  
+    .header-left {
+      margin-bottom: 10px;
+    }
+  }
+  

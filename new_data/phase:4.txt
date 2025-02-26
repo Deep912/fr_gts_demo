@@ -1,0 +1,62 @@
+# **📌 Phase 4: Database Setup & Implementation**  
+Now that we have **API endpoints and database schema planned**, this phase focuses on **setting up the database, defining relationships, and ensuring scalability**.
+
+---
+
+## **🔹 4.1 Database Goals**
+✅ **Fast & Optimized Queries** – Indexing for quick lookups  
+✅ **Scalability** – Supports large-scale cylinder tracking  
+✅ **Data Integrity** – Enforce foreign keys & constraints  
+✅ **Security** – Prevent unauthorized access & data breaches  
+✅ **Backup & Recovery Plan** – Prevent data loss  
+
+---
+
+## **🔹 4.2 Choosing the Right Database**
+| **Feature** | **PostgreSQL** | **MySQL** |
+|------------|--------------|--------------|
+| **Relational DB** | ✅ Yes | ✅ Yes |
+| **Scalability** | ✅ High | ✅ High |
+| **Data Integrity** | ✅ Strong | ✅ Moderate |
+| **JSON Support** | ✅ Yes | ❌ Limited |
+| **Full-Text Search** | ✅ Yes | ✅ Yes |
+| **Complex Queries** | ✅ Efficient | ❌ Slower |
+
+💡 **We recommend PostgreSQL for better performance in handling relational data and transactions**.
+
+---
+
+## **🔹 4.3 Database Setup**
+💡 **Primary Tables:**  
+✅ **Users** (Workers/Admins)  
+✅ **Cylinders** (Inventory)  
+✅ **Shipments** (Tracking)  
+✅ **Refills** (Refill process tracking)  
+
+💡 **Relationships:**  
+- **One Worker → Many Shipments**  
+- **One Cylinder → Many Shipment Entries**  
+- **One Cylinder → One Refill Process (At a Time)**  
+
+---
+
+## **🔹 4.4 Optimizing the Database**
+✅ **Indexing for Fast Queries**  
+- Primary keys on `id`  
+- Indexing `qr_code`, `status`, `sent_by_worker_id`  
+
+✅ **Foreign Key Constraints**  
+- Prevent orphaned records in shipments/refills  
+
+✅ **Partitioning Large Data Tables**  
+- Separate active vs archived shipments for efficiency  
+
+✅ **Backup Strategy**  
+- Daily backups (Automated via AWS RDS or cron jobs)  
+
+✅ **Security Measures**  
+- Encrypt sensitive data  
+- Role-based database access  
+
+---
+

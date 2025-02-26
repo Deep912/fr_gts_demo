@@ -1,0 +1,109 @@
+# **📌 Phase 3: Backend API Development**  
+Now that the **UI structure and workflows** are defined, we move on to the **backend API development** phase. This phase focuses on **building the core functionalities**, **securing the system**, and ensuring **real-time tracking**.
+
+---
+
+## **🔹 3.1 Backend Goals**
+✅ **Scalable & Fast** – Optimized for large-scale tracking  
+✅ **Secure & Role-Based** – Workers vs Admins permissions  
+✅ **Real-time Tracking** – Shipment & inventory updates  
+✅ **Efficient Data Storage** – Relational DB for fast lookups  
+✅ **API Documentation** – Swagger/Postman  
+
+---
+
+## **🔹 3.2 Backend Technology Stack**
+| **Component** | **Technology** |
+|--------------|--------------|
+| **Server** | Node.js (Express.js) OR FastAPI (Python) |
+| **Database** | PostgreSQL / MySQL |
+| **Authentication** | JWT (JSON Web Tokens) |
+| **Storage** | AWS S3 (for QR code images, reports) |
+| **Real-time Updates** | WebSockets / Firebase |
+| **API Documentation** | Swagger / Postman |
+| **Deployment** | AWS EC2 / DigitalOcean |
+| **Caching (Optional)** | Redis (for quick inventory lookups) |
+
+---
+
+## **🔹 3.3 Database Schema & Relationships**
+💡 **Main Tables**  
+✅ **Users Table** – Tracks workers/admins  
+✅ **Cylinders Table** – Stores inventory & QR codes  
+✅ **Shipments Table** – Logs shipment data & workers  
+✅ **Refills Table** – Tracks refill process  
+
+---
+
+### **📌 1️⃣ Users Table**
+Stores **worker and admin accounts** with role-based access.
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INT (Primary Key) | Unique identifier for user |
+| `username` | VARCHAR(255) | Unique worker/admin username |
+| `password_hash` | TEXT | Secure password storage |
+| `role` | ENUM | worker, admin |
+| `created_at` | TIMESTAMP | Account creation time |
+
+---
+
+### **📌 2️⃣ Cylinders Table**
+Tracks **each cylinder's status** (Available, Sent, In Refill, etc.).
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INT (Primary Key) | Unique cylinder ID |
+| `qr_code` | VARCHAR(255) | QR Code data (Generated on creation) |
+| `status` | ENUM | Available, Sent, Returned, In Refill, Trashed |
+| `created_at` | TIMESTAMP | Cylinder registration time |
+
+---
+
+### **📌 3️⃣ Shipments Table**
+Tracks **each shipment, including the worker responsible**.
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INT (Primary Key) | Shipment ID |
+| `cylinder_id` | INT (Foreign Key) | Linked to Cylinders Table |
+| `sent_by_worker_id` | INT (Foreign Key) | Worker who shipped |
+| `received_by_worker_id` | INT (Foreign Key) | Worker who confirmed return/refill |
+| `sent_to` | VARCHAR(255) | Customer/Refill Station receiving the shipment |
+| `status` | ENUM | Shipped, Received, In Refill, etc. |
+| `timestamp` | TIMESTAMP | Shipment processing time |
+
+---
+
+## **🔹 3.4 API Endpoints & Business Logic**
+### **📌 1️⃣ Authentication**
+✅ `POST /api/auth/login` → Worker/Admin Login  
+✅ `POST /api/auth/register` → Register a New User  
+✅ `GET /api/auth/logout` → Logout  
+
+---
+
+### **📌 2️⃣ Cylinder Management**
+✅ `POST /api/cylinders/add` → Add a new cylinder (Admin only)  
+✅ `POST /api/cylinders/trash` → Remove cylinder from inventory (Admin only)  
+✅ `POST /api/cylinders/reprint` → Re-generate QR code (Admin only)  
+✅ `POST /api/cylinders/ship` → Ship Cylinders  
+✅ `POST /api/cylinders/return` → Mark Cylinders as Returned  
+✅ `POST /api/cylinders/refill/send` → Send Cylinders for Refill  
+✅ `POST /api/cylinders/refill/receive` → Mark Refilled Cylinders as Received  
+
+---
+
+### **📌 3️⃣ Admin Reports & Analytics**
+✅ `GET /api/admin/shipments` → View all shipments & workers handling them  
+✅ `GET /api/admin/inventory` → View cylinder stock summary  
+✅ `GET /api/admin/reports` → Generate analytics & trends  
+
+---
+
+## **🔹 3.5 Security & Performance**
+✅ **Role-Based Access Control (RBAC)** – Workers vs Admins  
+✅ **JWT Authentication** – Secure login sessions  
+✅ **Rate Limiting & API Throttling** – Prevent spam/scanning abuse  
+✅ **Data Encryption** – Secure sensitive info  
+✅ **Caching (Redis)** – Optimize inventory lookups  
+
+---
+

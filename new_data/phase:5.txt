@@ -1,0 +1,92 @@
+# **📌 Phase 5: API Development & Integration**  
+Now that we have finalized **PostgreSQL as the database**, this phase focuses on **developing API endpoints, integrating them with the database, and ensuring smooth communication between the frontend and backend**.
+
+---
+
+## **🔹 5.1 API Development Goals**
+✅ **Secure, Scalable, and Fast APIs**  
+✅ **Role-Based Access Control (RBAC)** – Workers vs Admins  
+✅ **Efficient Data Handling** – Optimized queries & transactions  
+✅ **Real-Time Updates** – WebSockets or polling for live tracking  
+✅ **API Documentation** – Swagger/Postman  
+
+---
+
+## **🔹 5.2 API Technology Stack**
+| **Component** | **Technology** |
+|--------------|--------------|
+| **Backend Framework** | Node.js (Express.js) OR FastAPI (Python) |
+| **Database** | PostgreSQL |
+| **Authentication** | JWT (JSON Web Tokens) |
+| **Real-time Updates** | WebSockets / Firebase |
+| **API Documentation** | Swagger / Postman |
+| **Hosting** | AWS EC2 / DigitalOcean |
+
+---
+
+## **🔹 5.3 API Endpoints & Business Logic**
+💡 **Endpoints are grouped by functionality:**  
+✅ **Authentication (JWT-based login system)**  
+✅ **Cylinder Management (CRUD operations, status updates)**  
+✅ **Shipments (Tracking shipments per worker)**  
+✅ **Refills (Manage refill process)**  
+✅ **Admin Reports (Analytics & trends)**  
+
+---
+
+### **📌 1️⃣ Authentication**
+| **Method** | **Endpoint** | **Description** | **Access** |
+|------------|-------------|----------------|------------|
+| `POST` | `/api/auth/login` | Worker/Admin login | Public |
+| `POST` | `/api/auth/register` | Register a new user | Admin |
+| `GET` | `/api/auth/logout` | Logout session | Worker/Admin |
+
+---
+
+### **📌 2️⃣ Cylinder Management**
+| **Method** | **Endpoint** | **Description** | **Access** |
+|------------|-------------|----------------|------------|
+| `POST` | `/api/cylinders/add` | Add a new cylinder | Admin |
+| `POST` | `/api/cylinders/trash` | Remove a cylinder from inventory | Admin |
+| `POST` | `/api/cylinders/reprint` | Re-generate a QR code | Admin |
+| `GET` | `/api/cylinders/:id` | Get cylinder details | Worker/Admin |
+| `GET` | `/api/cylinders/` | Get all cylinders | Admin |
+
+---
+
+### **📌 3️⃣ Shipments**
+| **Method** | **Endpoint** | **Description** | **Access** |
+|------------|-------------|----------------|------------|
+| `POST` | `/api/shipments/ship` | Ship cylinders | Worker |
+| `POST` | `/api/shipments/return` | Mark cylinders as returned | Worker |
+| `GET` | `/api/shipments/:id` | Get shipment details | Worker/Admin |
+| `GET` | `/api/shipments/worker/:worker_id` | Get shipments by worker | Admin |
+
+---
+
+### **📌 4️⃣ Refills**
+| **Method** | **Endpoint** | **Description** | **Access** |
+|------------|-------------|----------------|------------|
+| `POST` | `/api/refills/send` | Send cylinders for refill | Worker |
+| `POST` | `/api/refills/receive` | Mark refilled cylinders as received | Worker |
+| `GET` | `/api/refills/:id` | Get refill status | Worker/Admin |
+
+---
+
+### **📌 5️⃣ Admin Reports & Analytics**
+| **Method** | **Endpoint** | **Description** | **Access** |
+|------------|-------------|----------------|------------|
+| `GET` | `/api/admin/shipments` | View all shipments & workers handling them | Admin |
+| `GET` | `/api/admin/inventory` | View cylinder stock summary | Admin |
+| `GET` | `/api/admin/reports` | Generate analytics & trends | Admin |
+
+---
+
+## **🔹 5.4 Real-Time Updates**
+✅ **Live Tracking of Shipments** → WebSockets for instant updates  
+✅ **Delayed Return Alerts** → Notify admins if cylinders are overdue  
+✅ **Refill Station Updates** → Real-time refill progress tracking  
+
+---
+
+

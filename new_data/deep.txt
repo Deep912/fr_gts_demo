@@ -1,0 +1,10 @@
+1. worker login to app
+	they can choose from 1) send to company 2) receive from company 3) accept filled bottles
+
+	1.1) user will scan one bottle then confim that bottle then goes for second (this bottles will be added to a list )
+	1.2) after scanning all they need user has to select the company name where it is going then final confirm
+
+	2.1) user will scan bottles that are back from client and mark bottle damange if there is any 
+	2.2) after scanning user will confirm client company name who send it back
+	2.3) it will send bottles to refill 
+	2.4) send damaged bottles to maintanence &&
