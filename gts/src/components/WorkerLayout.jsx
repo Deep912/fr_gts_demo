@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+
 import {
   Layout,
   Menu,
@@ -25,6 +26,7 @@ import "../styles/WorkerLayout.css";
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
+const API_URL = import.meta.env.VITE_API_URL;
 
 const WorkerLayout = () => {
   const navigate = useNavigate();
@@ -57,7 +59,7 @@ const WorkerLayout = () => {
   // Fetch recent transactions
   useEffect(() => {
     axios
-      .get("http://localhost:5000/worker/transactions", {
+      .get(`${API_URL}/worker/transactions`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       })
       .then((response) => {
