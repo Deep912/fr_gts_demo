@@ -4,6 +4,7 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+import { useEffect, useState } from "react";
 import Login from "./pages/Login";
 import AdminLayout from "./components/AdminLayout";
 import WorkerLayout from "./components/WorkerLayout";
@@ -17,38 +18,44 @@ import CompleteRefill from "./pages/worker/CompleteRefill";
 import TestScanner from "./TestScanner";
 
 const App = () => {
-  const role = localStorage.getItem("role");
+  const [role, setRole] = useState(null);
+
+  useEffect(() => {
+    setRole(localStorage.getItem("role")); // ✅ Ensures `role` is updated
+  }, []);
 
   return (
     <Router>
       <Routes>
-        {/* Login Route */}
+        {/* ✅ Login Route */}
         <Route path="/" element={<Login />} />
         <Route path="/test-scanner" element={<TestScanner />} />
 
-        {/* Admin Routes (Protected) */}
-        {role === "admin" ? (
-          <Route path="/admin/*" element={<AdminLayout />}>
-            <Route path="cylinders" element={<Cylinders />} />
-            <Route path="companies" element={<Companies />} />
-            <Route path="reports" element={<Reports />} />
-          </Route>
-        ) : (
-          <Route path="/admin/*" element={<Navigate to="/" />} />
-        )}
+        {/* ✅ Admin Routes (Protected) */}
+        <Route
+          path="/admin/*"
+          element={role === "admin" ? <AdminLayout /> : <Navigate to="/" />}
+        >
+          <Route path="cylinders" element={<Cylinders />} />
+          <Route path="companies" element={<Companies />} />
+          <Route path="reports" element={<Reports />} />
+        </Route>
 
-        {/* Worker Routes (Protected) */}
-        {role === "worker" ? (
-          <Route path="/worker/*" element={<WorkerLayout />}>
-            <Route index element={<div />} /> {/* ✅ Keeps user on /worker */}
-            <Route path="dispatch" element={<Dispatch />} />
-            <Route path="receive" element={<Receive />} />
-            <Route path="refill" element={<Refill />} />
-            <Route path="complete-refill" element={<CompleteRefill />} />
-          </Route>
-        ) : (
-          <Route path="/worker/*" element={<Navigate to="/" />} />
-        )}
+        {/* ✅ Worker Routes (Protected) */}
+        <Route
+          path="/worker/*"
+          element={role === "worker" ? <WorkerLayout /> : <Navigate to="/" />}
+        >
+          <Route index element={<Navigate to="dispatch" />} />{" "}
+          {/* ✅ Redirects `/worker/` to `/worker/dispatch` */}
+          <Route path="dispatch" element={<Dispatch />} />
+          <Route path="receive" element={<Receive />} />
+          <Route path="refill" element={<Refill />} />
+          <Route path="complete-refill" element={<CompleteRefill />} />
+        </Route>
+
+        {/* ✅ Catch-All 404 Route */}
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
   );
