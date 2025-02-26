@@ -7,6 +7,7 @@ import "../styles/Login.css";
 const { Title } = Typography;
 
 const Login = () => {
+  const API_URL = import.meta.env.VITE_API_URL;
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (values) => {
@@ -15,10 +16,7 @@ const Login = () => {
 
     try {
       // ❗ Replace with your network IP
-      const response = await axios.post(
-        "http://192.168.157.246:5000/login",
-        values
-      );
+      const response = await axios.post(`${API_URL}/login`, values);
 
       console.log("🔹 API Response:", response.data);
 
