@@ -1,13 +1,14 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL, // Ensure this is correct
+  baseURL: import.meta.env.VITE_API_URL,
 });
 
-// ✅ Attach interceptors to dynamically set headers for every request
+// ✅ Ensure every request includes the correct headers
 API.interceptors.request.use((config) => {
   config.headers.Authorization = `Bearer ${localStorage.getItem("token")}`;
-  config.headers["ngrok-skip-browser-warning"] = "true"; // ✅ Fix Ngrok Warning
+  config.headers["ngrok-skip-browser-warning"] = "true"; // ✅ Force this header
+  config.headers["Content-Type"] = "application/json"; // Ensure JSON responses
   return config;
 });
 
