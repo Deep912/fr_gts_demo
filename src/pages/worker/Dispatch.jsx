@@ -47,7 +47,7 @@ const Dispatch = () => {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((response) => {
-        console.log("✅ Companies Response:", response.data);
+        console.log("✅ Companies Response:", response);
         setCompanies(Array.isArray(response.data) ? response.data : []);
       })
       .catch((error) => {
