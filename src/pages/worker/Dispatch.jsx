@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import API from "../../utils/api"; // ✅ Centralized Axios instance
 import {
   Select,
   InputNumber,
@@ -19,8 +19,6 @@ import {
 import "../../styles/Dispatch.css";
 import { Html5QrcodeScanner } from "html5-qrcode";
 
-const SERVER_URL = import.meta.env.VITE_API_URL;
-
 const Dispatch = () => {
   const [companies, setCompanies] = useState([]);
   const [companyId, setCompanyId] = useState("");
@@ -33,23 +31,12 @@ const Dispatch = () => {
   const [scanning, setScanning] = useState(false);
   const [scannerInstance, setScannerInstance] = useState(null);
 
+  // ✅ Fetch Companies
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      message.error("Session expired. Please log in again.");
-      window.location.href = "/login";
-      return;
-    }
-
-    axios
-      .get(`${SERVER_URL}/companies`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+    API.get("/companies")
       .then((response) => {
-        console.log("✅ Companies Response:", response);
-        console.log(SERVER_URL);
-        setCompanies(Array.isArray(response.data) ? response.data : []);
+        console.log("✅ Companies Response:", response.data);
+        setCompanies(response.data);
       })
       .catch((error) => {
         console.error("❌ Error fetching companies:", error);
@@ -57,16 +44,12 @@ const Dispatch = () => {
       });
   }, []);
 
+  // ✅ Fetch Products
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    axios
-      .get(`${SERVER_URL}/products`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+    API.get("/products")
       .then((response) => {
         console.log("✅ Products Response:", response.data);
-        setProducts(Array.isArray(response.data) ? response.data : []);
+        setProducts(response.data);
       })
       .catch((error) => {
         console.error("❌ Error fetching products:", error);
@@ -74,21 +57,16 @@ const Dispatch = () => {
       });
   }, []);
 
+  // ✅ Fetch Available Cylinders
   const fetchAvailableCylinders = async () => {
     if (!selectedProduct || !quantity) return;
 
     try {
-      const token = localStorage.getItem("token");
-
-      const response = await axios.get(
-        `${SERVER_URL}/available-cylinders?product=${selectedProduct}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+      const response = await API.get(
+        `/available-cylinders?product=${selectedProduct}`
       );
-
       console.log("✅ Available Cylinders:", response.data);
-      setAvailableCylinders(Array.isArray(response.data) ? response.data : []);
+      setAvailableCylinders(response.data);
       setStep(2);
     } catch (error) {
       console.error("❌ Error fetching available cylinders:", error);
@@ -104,6 +82,7 @@ const Dispatch = () => {
     );
   };
 
+  // ✅ QR Code Scanner
   const handleScan = (decodedText) => {
     if (!decodedText) return;
 
@@ -140,6 +119,7 @@ const Dispatch = () => {
     }, 500);
   };
 
+  // ✅ Dispatch Cylinders
   const handleConfirmDispatch = async () => {
     if (!companyId || !selectedProduct || !quantity) {
       message.error("Please select all required fields before dispatching.");
@@ -158,15 +138,10 @@ const Dispatch = () => {
       quantity,
     };
 
-    console.log("🚀 Dispatching Cylinders:", payload); // Debugging
+    console.log("🚀 Dispatching Cylinders:", payload);
 
     try {
-      const token = localStorage.getItem("token");
-
-      await axios.post(`${SERVER_URL}/dispatch-cylinder`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
+      await API.post("/dispatch-cylinder", payload);
       message.success("Cylinders Dispatched Successfully!");
       setStep(1);
       setSelectedCylinders([]);
@@ -199,12 +174,11 @@ const Dispatch = () => {
           onChange={setCompanyId}
           value={companyId}
         >
-          {Array.isArray(companies) &&
-            companies.map((company) => (
-              <Select.Option key={company.id} value={company.id}>
-                {company.name}
-              </Select.Option>
-            ))}
+          {companies.map((company) => (
+            <Select.Option key={company.id} value={company.id}>
+              {company.name}
+            </Select.Option>
+          ))}
         </Select>
 
         <label className="dispatch-label">Select Cylinder Type:</label>
@@ -215,12 +189,11 @@ const Dispatch = () => {
           onChange={setSelectedProduct}
           value={selectedProduct}
         >
-          {Array.isArray(products) &&
-            products.map((product, index) => (
-              <Select.Option key={index} value={product}>
-                {product}
-              </Select.Option>
-            ))}
+          {products.map((product, index) => (
+            <Select.Option key={index} value={product}>
+              {product}
+            </Select.Option>
+          ))}
         </Select>
 
         <label className="dispatch-label">Enter Quantity:</label>
