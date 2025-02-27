@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import API from "../../services/api"; // ✅ Centralized API handler
+import axios from "axios";
 import {
   Select,
   InputNumber,
@@ -19,6 +19,8 @@ import {
 import "../../styles/Dispatch.css";
 import { Html5QrcodeScanner } from "html5-qrcode";
 
+const SERVER_URL = import.meta.env.VITE_API_URL;
+
 const Dispatch = () => {
   const [companies, setCompanies] = useState([]);
   const [companyId, setCompanyId] = useState("");
@@ -31,42 +33,65 @@ const Dispatch = () => {
   const [scanning, setScanning] = useState(false);
   const [scannerInstance, setScannerInstance] = useState(null);
 
-  // ✅ Fetch Companies
   useEffect(() => {
-    API.get("/companies")
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      message.error("Session expired. Please log in again.");
+      window.location.href = "/login";
+      return;
+    }
+
+    axios
+      .get(`${SERVER_URL}/companies`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "true",
+        },
+      })
       .then((response) => {
         console.log("✅ Companies Response:", response.data);
-        setCompanies(response.data);
+        setCompanies(Array.isArray(response.data) ? response.data : []);
       })
-      .catch((error) => {
-        console.error("❌ Error fetching companies:", error);
-        message.error("Error fetching companies.");
-      });
+      .catch(() => message.error("Error fetching companies."));
   }, []);
 
-  // ✅ Fetch Products
   useEffect(() => {
-    API.get("/products")
+    const token = localStorage.getItem("token");
+
+    axios
+      .get(`${SERVER_URL}/products`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "true",
+        },
+      })
       .then((response) => {
         console.log("✅ Products Response:", response.data);
-        setProducts(response.data);
+        setProducts(Array.isArray(response.data) ? response.data : []);
       })
-      .catch((error) => {
-        console.error("❌ Error fetching products:", error);
-        message.error("Error fetching products");
-      });
+      .catch(() => message.error("Error fetching products"));
   }, []);
 
-  // ✅ Fetch Available Cylinders
   const fetchAvailableCylinders = async () => {
     if (!selectedProduct || !quantity) return;
 
     try {
-      const response = await API.get(
-        `/available-cylinders?product=${selectedProduct}`
+      const token = localStorage.getItem("token");
+
+      const response = await axios.get(
+        `${SERVER_URL}/available-cylinders?product=${selectedProduct}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "ngrok-skip-browser-warning": "true",
+          },
+        }
       );
+
       console.log("✅ Available Cylinders:", response.data);
-      setAvailableCylinders(response.data);
+
+      setAvailableCylinders(Array.isArray(response.data) ? response.data : []);
       setStep(2);
     } catch (error) {
       console.error("❌ Error fetching available cylinders:", error);
@@ -82,22 +107,23 @@ const Dispatch = () => {
     );
   };
 
-  // ✅ QR Code Scanner
   const handleScan = (decodedText) => {
     if (!decodedText) return;
 
     const serialNumber = decodedText.trim();
     console.log("🔹 Scanned QR Code:", serialNumber);
 
-    setSelectedCylinders((prev) => {
-      const updatedCylinders = [...prev, serialNumber];
-      if (updatedCylinders.length >= quantity) {
-        message.success("All cylinders scanned successfully!");
-        setScanning(false);
-        scannerInstance?.clear();
-      }
-      return updatedCylinders;
-    });
+    if (!selectedCylinders.includes(serialNumber)) {
+      setSelectedCylinders((prev) => [...prev, serialNumber]);
+      message.success(`Scanned: ${serialNumber}`);
+    }
+
+    // Stop scanning when the required number of QR codes is reached
+    if (selectedCylinders.length + 1 >= quantity) {
+      setScanning(false);
+      scannerInstance?.clear();
+      message.success("All cylinders scanned successfully!");
+    }
   };
 
   const handleScanError = (error) => {
@@ -107,25 +133,30 @@ const Dispatch = () => {
 
   const startScanner = () => {
     setScanning(true);
-
-    setTimeout(() => {
-      const scanner = new Html5QrcodeScanner("reader", {
-        fps: 10,
-        qrbox: { width: 300, height: 300 },
-      });
-
-      scanner.render(handleScan, handleScanError);
-      setScannerInstance(scanner);
-    }, 500);
   };
 
-  // ✅ Dispatch Cylinders
-  const handleConfirmDispatch = async () => {
-    if (!companyId || !selectedProduct || !quantity) {
-      message.error("Please select all required fields before dispatching.");
-      return;
+  useEffect(() => {
+    if (scanning) {
+      setTimeout(() => {
+        const scanner = new Html5QrcodeScanner("reader", {
+          fps: 10,
+          qrbox: { width: 300, height: 300 },
+        });
+
+        scanner.render(handleScan, handleScanError);
+        setScannerInstance(scanner);
+      }, 500);
     }
 
+    return () => {
+      // ✅ Cleanup scanner instance when modal closes
+      if (scannerInstance) {
+        scannerInstance.clear();
+      }
+    };
+  }, [scanning]);
+
+  const handleConfirmDispatch = async () => {
     if (selectedCylinders.length !== Number(quantity)) {
       message.warning(`Please select exactly ${quantity} cylinders`);
       return;
@@ -138,10 +169,16 @@ const Dispatch = () => {
       quantity,
     };
 
-    console.log("🚀 Dispatching Cylinders:", payload);
-
     try {
-      await API.post("/dispatch-cylinder", payload);
+      const token = localStorage.getItem("token");
+
+      await axios.post(`${SERVER_URL}/dispatch-cylinder`, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "true",
+        },
+      });
+
       message.success("Cylinders Dispatched Successfully!");
       setStep(1);
       setSelectedCylinders([]);
@@ -150,7 +187,7 @@ const Dispatch = () => {
       setSelectedProduct("");
       setQuantity("");
     } catch (error) {
-      console.error("❌ Dispatch Error:", error.response?.data || error);
+      console.error("Dispatch Error:", error.response?.data || error);
       message.error(
         `Error dispatching cylinders: ${
           error.response?.data?.error || "Unknown error"
@@ -221,13 +258,31 @@ const Dispatch = () => {
         </div>
       </div>
 
+      <Modal
+        title="Scan QR Codes"
+        open={scanning}
+        onCancel={() => setScanning(false)}
+        footer={null}
+        width={400}
+      >
+        <div id="reader"></div>
+        <p>
+          Scanned {selectedCylinders.length} of {quantity}
+        </p>
+      </Modal>
+
       {step === 2 && (
         <div className="cylinder-selection-container">
           <h3>Select {quantity} Cylinders:</h3>
           <Row gutter={[16, 16]}>
-            {selectedCylinders.map((cylinder, index) => (
+            {availableCylinders.map((cylinder, index) => (
               <Col key={index} xs={24} sm={12} md={8}>
-                <Checkbox checked>{cylinder}</Checkbox>
+                <Checkbox
+                  checked={selectedCylinders.includes(cylinder.serial_number)}
+                  onChange={() => toggleCylinderSelection(cylinder.serial_number)}
+                >
+                  {cylinder.serial_number}
+                </Checkbox>
               </Col>
             ))}
           </Row>
