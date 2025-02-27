@@ -1,16 +1,13 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL, // Use environment variable
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-    "ngrok-skip-browser-warning": "true", // ✅ Bypass ngrok warning
-  },
+  baseURL: import.meta.env.VITE_API_URL, // Ensure this is correct
 });
 
-// ✅ Ensure token is updated dynamically for each request
+// ✅ Attach interceptors to dynamically set headers for every request
 API.interceptors.request.use((config) => {
   config.headers.Authorization = `Bearer ${localStorage.getItem("token")}`;
+  config.headers["ngrok-skip-browser-warning"] = "true"; // ✅ Fix Ngrok Warning
   return config;
 });
 
