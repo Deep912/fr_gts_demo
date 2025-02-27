@@ -21,7 +21,7 @@ const App = () => {
   const [role, setRole] = useState(null);
 
   useEffect(() => {
-    setRole(localStorage.getItem("role")); // ✅ Ensures `role` is updated
+    setRole(localStorage.getItem("role")); // ✅ Ensure role updates
   }, []);
 
   return (
@@ -31,7 +31,7 @@ const App = () => {
         <Route path="/" element={<Login />} />
         <Route path="/test-scanner" element={<TestScanner />} />
 
-        {/* ✅ Admin Routes (Protected) */}
+        {/* ✅ Admin Routes */}
         <Route
           path="/admin/*"
           element={role === "admin" ? <AdminLayout /> : <Navigate to="/" />}
@@ -41,13 +41,13 @@ const App = () => {
           <Route path="reports" element={<Reports />} />
         </Route>
 
-        {/* ✅ Worker Routes (Protected) */}
+        {/* ✅ Worker Routes */}
         <Route
           path="/worker/*"
           element={role === "worker" ? <WorkerLayout /> : <Navigate to="/" />}
         >
           <Route index element={<Navigate to="dispatch" />} />{" "}
-          {/* ✅ Redirects `/worker/` to `/worker/dispatch` */}
+          {/* ✅ Redirect `/worker/` to `/worker/dispatch` */}
           <Route path="dispatch" element={<Dispatch />} />
           <Route path="receive" element={<Receive />} />
           <Route path="refill" element={<Refill />} />
