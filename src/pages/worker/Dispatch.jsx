@@ -19,7 +19,7 @@ import {
 import "../../styles/Dispatch.css";
 import { Html5QrcodeScanner } from "html5-qrcode";
 
-const SERVER_URL = import.meta.env.VITE_API_BASE_URL;
+const SERVER_URL = import.meta.env.VITE_API_URL;
 
 const Dispatch = () => {
   const [companies, setCompanies] = useState([]);
