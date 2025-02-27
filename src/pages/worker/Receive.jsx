@@ -2,27 +2,23 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import {
   Select,
-  Input,
   Button,
   Card,
   Row,
   Col,
+  Checkbox,
   Switch,
   Modal,
   message,
+  Divider,
+  Typography,
 } from "antd";
-import {
-  DownloadOutlined,
-  SearchOutlined,
-  ScanOutlined,
-  FilePdfOutlined,
-} from "@ant-design/icons";
+import { DownloadOutlined, ScanOutlined } from "@ant-design/icons";
 import { Html5QrcodeScanner } from "html5-qrcode";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
 import "../../styles/Receive.css";
 
-const SERVER_URL = "http://192.168.157.246:5000"; // Replace with your actual server IP
+const { Title, Text } = Typography;
+const SERVER_URL = import.meta.env.VITE_API_URL;
 
 const Receive = () => {
   const [companies, setCompanies] = useState([]);
@@ -30,21 +26,17 @@ const Receive = () => {
   const [dispatchedCylinders, setDispatchedCylinders] = useState([]);
   const [selectedCylinders, setSelectedCylinders] = useState([]);
   const [notEmptyCylinders, setNotEmptyCylinders] = useState([]);
-  const [searchCylinder, setSearchCylinder] = useState("");
   const [scanning, setScanning] = useState(false);
-  const [currentUser, setCurrentUser] = useState(""); // Store logged-in user
-
-  // ✅ Fetch Logged-in User
-  useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem("user"));
-    if (userData) setCurrentUser(userData.username);
-  }, []);
+  const [scannerInstance, setScannerInstance] = useState(null);
 
   // ✅ Fetch Companies
   useEffect(() => {
     axios
       .get(`${SERVER_URL}/companies`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "ngrok-skip-browser-warning": "true",
+        },
       })
       .then((response) => setCompanies(response.data))
       .catch(() => message.error("Error fetching companies"));
@@ -53,23 +45,30 @@ const Receive = () => {
   // ✅ Fetch Dispatched Cylinders on Company Selection
   useEffect(() => {
     if (!companyId) return;
+
     axios
       .get(`${SERVER_URL}/dispatched-cylinders?companyId=${companyId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "ngrok-skip-browser-warning": "true",
+        },
       })
       .then((response) => {
-        setDispatchedCylinders(response.data);
+        console.log("✅ Dispatched Cylinders:", response.data);
+        setDispatchedCylinders(
+          Array.isArray(response.data) ? response.data : []
+        );
         setSelectedCylinders([]);
         setNotEmptyCylinders([]);
       })
       .catch(() => message.error("Error fetching dispatched cylinders"));
   }, [companyId]);
 
-  // ✅ Select Cylinder (Manual Selection)
+  // ✅ Select/Deselect Cylinder
   const handleCylinderSelection = (serialNumber) => {
     setSelectedCylinders((prev) =>
       prev.includes(serialNumber)
-        ? prev.filter((sn) => sn !== serialNumber) // Deselect if already selected
+        ? prev.filter((sn) => sn !== serialNumber)
         : [...prev, serialNumber]
     );
   };
@@ -83,21 +82,51 @@ const Receive = () => {
     );
   };
 
-  // ✅ Handle Manual Entry (Search & Select)
-  const handleManualEntry = () => {
-    if (!searchCylinder.trim()) return;
-    const exists = dispatchedCylinders.some(
-      (cylinder) => cylinder.serial_number === searchCylinder
-    );
-    if (exists) {
-      handleCylinderSelection(searchCylinder);
-      setSearchCylinder("");
+  // ✅ Handle QR Code Scan
+  const handleScan = (decodedText) => {
+    if (!decodedText) return;
+
+    const serialNumber = decodedText.trim();
+    console.log("🔹 Scanned QR Code:", serialNumber);
+
+    if (dispatchedCylinders.some((c) => c.serial_number === serialNumber)) {
+      handleCylinderSelection(serialNumber);
+      message.success(`Scanned: ${serialNumber}`);
     } else {
-      message.warning("Cylinder not found in dispatched list");
+      message.warning("Scanned cylinder is not in the dispatched list.");
     }
   };
 
-  // ✅ Handle Confirm Receive & Generate PDF
+  const handleScanError = (error) => {
+    console.error("QR Scan Error:", error);
+    message.error("Error scanning QR code.");
+  };
+
+  const startScanner = () => {
+    setScanning(true);
+  };
+
+  useEffect(() => {
+    if (scanning) {
+      setTimeout(() => {
+        const scanner = new Html5QrcodeScanner("reader", {
+          fps: 10,
+          qrbox: { width: 300, height: 300 },
+        });
+
+        scanner.render(handleScan, handleScanError);
+        setScannerInstance(scanner);
+      }, 500);
+    }
+
+    return () => {
+      if (scannerInstance) {
+        scannerInstance.clear();
+      }
+    };
+  }, [scanning]);
+
+  // ✅ Confirm Receive Only Selected Cylinders
   const handleConfirmReceive = () => {
     if (selectedCylinders.length === 0) {
       message.warning("Please select at least one cylinder");
@@ -111,66 +140,36 @@ const Receive = () => {
           emptySerialNumbers: selectedCylinders.filter(
             (sn) => !notEmptyCylinders.includes(sn)
           ),
-          filledSerialNumbers: notEmptyCylinders,
+          filledSerialNumbers: selectedCylinders.filter((sn) =>
+            notEmptyCylinders.includes(sn)
+          ),
           companyId,
         },
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "ngrok-skip-browser-warning": "true",
+          },
         }
       )
       .then(() => {
-        message.success("Cylinders received successfully!");
-        generatePDF();
+        message.success("Selected cylinders received successfully!");
         setSelectedCylinders([]);
         setNotEmptyCylinders([]);
-        setDispatchedCylinders([]); // Reset the list after confirmation
+        setDispatchedCylinders((prev) =>
+          prev.filter(
+            (cylinder) => !selectedCylinders.includes(cylinder.serial_number)
+          )
+        );
       })
       .catch(() => message.error("Error receiving cylinders"));
   };
 
-  // ✅ Generate PDF Receipt
-  const generatePDF = () => {
-    const doc = new jsPDF();
-    const companyName =
-      companies.find((c) => c.id === companyId)?.name || "Unknown Company";
-    const dateTime = new Date().toLocaleString();
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Cylinder Receipt", 105, 15, { align: "center" });
-    doc.setFontSize(11);
-    doc.text(`Company: ${companyName}`, 15, 30);
-    doc.text(`Date: ${dateTime}`, 15, 40);
-    doc.text(`Accepted by: ${currentUser}`, 15, 50);
-
-    // ✅ Table Headers
-    const tableColumn = ["Serial Number", "Gas Type", "Size", "Status"];
-    const tableRows = selectedCylinders.map((serial) => {
-      const cylinder = dispatchedCylinders.find(
-        (c) => c.serial_number === serial
-      );
-      return [
-        serial,
-        cylinder?.gas_type || "Unknown",
-        cylinder?.size || "N/A",
-        notEmptyCylinders.includes(serial) ? "Not Empty" : "Empty",
-      ];
-    });
-
-    doc.autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      startY: 60,
-      theme: "striped",
-    });
-
-    doc.save(`Cylinder_Receipt_${dateTime}.pdf`);
-  };
-
   return (
     <Card className="receive-card">
-      <h2 className="receive-title">
-        <DownloadOutlined /> Receive Cylinders
-      </h2>
+      <Title level={3} className="receive-title">
+        Receive Cylinders
+      </Title>
 
       {/* ✅ Select Company */}
       <label className="receive-label">Select Company:</label>
@@ -189,6 +188,73 @@ const Receive = () => {
         ))}
       </Select>
 
+      {/* ✅ Scan QR Code Button (Below Company Selection) */}
+      <Button
+        type="primary"
+        icon={<ScanOutlined />}
+        onClick={startScanner}
+        style={{ marginTop: "10px", width: "100%" }}
+      >
+        Scan QR Code
+      </Button>
+
+      {/* ✅ QR Code Scanner Modal */}
+      <Modal
+        title="Scan QR Codes"
+        open={scanning}
+        onCancel={() => setScanning(false)}
+        footer={null}
+        width={400}
+      >
+        <div id="reader"></div>
+      </Modal>
+
+      <Divider />
+
+      {/* ✅ Cylinder List */}
+      {dispatchedCylinders.length > 0 ? (
+        <>
+          <Row gutter={[16, 16]} style={{ marginTop: "20px" }}>
+            {dispatchedCylinders.map((cylinder, index) => (
+              <Col
+                key={index}
+                xs={24}
+                sm={12}
+                md={8}
+                style={{ marginBottom: "10px" }}
+              >
+                <Checkbox
+                  checked={selectedCylinders.includes(cylinder.serial_number)}
+                  onChange={() =>
+                    handleCylinderSelection(cylinder.serial_number)
+                  }
+                >
+                  <Text strong>{cylinder.serial_number}</Text>
+                </Checkbox>
+                <Switch
+                  style={{ marginLeft: "10px" }}
+                  checked={notEmptyCylinders.includes(cylinder.serial_number)}
+                  onChange={(checked) =>
+                    toggleNotEmpty(cylinder.serial_number, checked)
+                  }
+                />
+                <Text style={{ marginLeft: "5px" }}>
+                  {notEmptyCylinders.includes(cylinder.serial_number)
+                    ? "Available"
+                    : "Empty"}
+                </Text>
+              </Col>
+            ))}
+          </Row>
+
+          <Divider />
+        </>
+      ) : (
+        <Text type="secondary" style={{ marginTop: "20px", display: "block" }}>
+          No dispatched cylinders found.
+        </Text>
+      )}
+
       {/* ✅ Confirm Button */}
       <Button
         type="primary"
@@ -196,22 +262,10 @@ const Receive = () => {
         icon={<DownloadOutlined />}
         disabled={selectedCylinders.length === 0}
         onClick={handleConfirmReceive}
+        style={{ marginTop: "20px", width: "100%" }}
       >
         Confirm Receive
       </Button>
-
-      {/* ✅ Generate PDF Button */}
-      {selectedCylinders.length > 0 && (
-        <Button
-          type="default"
-          className="pdf-button"
-          icon={<FilePdfOutlined />}
-          onClick={generatePDF}
-          style={{ marginLeft: "10px" }}
-        >
-          Download Receipt
-        </Button>
-      )}
     </Card>
   );
 };
