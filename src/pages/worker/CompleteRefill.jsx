@@ -15,7 +15,7 @@ import {
   CheckOutlined,
   SearchOutlined,
   SelectOutlined,
-  DeselectOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
