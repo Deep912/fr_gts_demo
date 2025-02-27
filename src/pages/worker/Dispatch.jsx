@@ -48,6 +48,7 @@ const Dispatch = () => {
       })
       .then((response) => {
         console.log("✅ Companies Response:", response);
+        console.log(SERVER_URL);
         setCompanies(Array.isArray(response.data) ? response.data : []);
       })
       .catch((error) => {
