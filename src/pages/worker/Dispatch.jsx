@@ -46,8 +46,14 @@ const Dispatch = () => {
       .get(`${SERVER_URL}/companies`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      .then((response) => setCompanies(response.data))
-      .catch(() => message.error("Error fetching companies."));
+      .then((response) => {
+        console.log("✅ Companies Response:", response.data);
+        setCompanies(Array.isArray(response.data) ? response.data : []);
+      })
+      .catch((error) => {
+        console.error("❌ Error fetching companies:", error);
+        message.error("Error fetching companies.");
+      });
   }, []);
 
   useEffect(() => {
@@ -57,8 +63,14 @@ const Dispatch = () => {
       .get(`${SERVER_URL}/products`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      .then((response) => setProducts(response.data))
-      .catch(() => message.error("Error fetching products"));
+      .then((response) => {
+        console.log("✅ Products Response:", response.data);
+        setProducts(Array.isArray(response.data) ? response.data : []);
+      })
+      .catch((error) => {
+        console.error("❌ Error fetching products:", error);
+        message.error("Error fetching products");
+      });
   }, []);
 
   const fetchAvailableCylinders = async () => {
@@ -74,9 +86,11 @@ const Dispatch = () => {
         }
       );
 
-      setAvailableCylinders(response.data);
+      console.log("✅ Available Cylinders:", response.data);
+      setAvailableCylinders(Array.isArray(response.data) ? response.data : []);
       setStep(2);
     } catch (error) {
+      console.error("❌ Error fetching available cylinders:", error);
       message.error("Error fetching available cylinders");
     }
   };
@@ -95,17 +109,15 @@ const Dispatch = () => {
     const serialNumber = decodedText.trim();
     console.log("🔹 Scanned QR Code:", serialNumber);
 
-    if (!selectedCylinders.includes(serialNumber)) {
-      setSelectedCylinders((prev) => [...prev, serialNumber]);
-      message.success(`Scanned: ${serialNumber}`);
-    }
-
-    // Stop scanning when the required number of QR codes is reached
-    if (selectedCylinders.length + 1 >= quantity) {
-      setScanning(false);
-      scannerInstance?.clear();
-      message.success("All cylinders scanned successfully!");
-    }
+    setSelectedCylinders((prev) => {
+      const updatedCylinders = [...prev, serialNumber];
+      if (updatedCylinders.length >= quantity) {
+        message.success("All cylinders scanned successfully!");
+        setScanning(false);
+        scannerInstance?.clear();
+      }
+      return updatedCylinders;
+    });
   };
 
   const handleScanError = (error) => {
@@ -128,6 +140,11 @@ const Dispatch = () => {
   };
 
   const handleConfirmDispatch = async () => {
+    if (!companyId || !selectedProduct || !quantity) {
+      message.error("Please select all required fields before dispatching.");
+      return;
+    }
+
     if (selectedCylinders.length !== Number(quantity)) {
       message.warning(`Please select exactly ${quantity} cylinders`);
       return;
@@ -139,6 +156,8 @@ const Dispatch = () => {
       selectedProduct,
       quantity,
     };
+
+    console.log("🚀 Dispatching Cylinders:", payload); // Debugging
 
     try {
       const token = localStorage.getItem("token");
@@ -155,7 +174,7 @@ const Dispatch = () => {
       setSelectedProduct("");
       setQuantity("");
     } catch (error) {
-      console.error("Dispatch Error:", error.response?.data || error);
+      console.error("❌ Dispatch Error:", error.response?.data || error);
       message.error(
         `Error dispatching cylinders: ${
           error.response?.data?.error || "Unknown error"
@@ -179,11 +198,12 @@ const Dispatch = () => {
           onChange={setCompanyId}
           value={companyId}
         >
-          {companies.map((company) => (
-            <Select.Option key={company.id} value={company.id}>
-              {company.name}
-            </Select.Option>
-          ))}
+          {Array.isArray(companies) &&
+            companies.map((company) => (
+              <Select.Option key={company.id} value={company.id}>
+                {company.name}
+              </Select.Option>
+            ))}
         </Select>
 
         <label className="dispatch-label">Select Cylinder Type:</label>
@@ -194,11 +214,12 @@ const Dispatch = () => {
           onChange={setSelectedProduct}
           value={selectedProduct}
         >
-          {products.map((product, index) => (
-            <Select.Option key={index} value={product}>
-              {product}
-            </Select.Option>
-          ))}
+          {Array.isArray(products) &&
+            products.map((product, index) => (
+              <Select.Option key={index} value={product}>
+                {product}
+              </Select.Option>
+            ))}
         </Select>
 
         <label className="dispatch-label">Enter Quantity:</label>
@@ -225,26 +246,6 @@ const Dispatch = () => {
           </Button>
         </div>
       </div>
-
-      {scanning && (
-        <Modal
-          title="Scan QR Codes"
-          visible={scanning}
-          onCancel={() => setScanning(false)}
-          footer={null}
-          width={400}
-        >
-          <div id="reader"></div>
-          <p>
-            Scanned {selectedCylinders.length} of {quantity}
-          </p>
-          {selectedCylinders.length < quantity && (
-            <Button type="primary" onClick={startScanner}>
-              Scan Next
-            </Button>
-          )}
-        </Modal>
-      )}
 
       {step === 2 && (
         <div className="cylinder-selection-container">
