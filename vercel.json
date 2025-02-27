@@ -4,10 +4,12 @@
     { "source": "/admin/:path*", "destination": "/index.html" },
     { "source": "/:path*", "destination": "/index.html" }
   ],
-  "builds": [
-    { "src": "dist/index.html", "use": "@vercel/static" }
-  ],
-  "routes": [
-    { "src": "/(.*)", "dest": "/index.html" }
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, proxy-revalidate" }
+      ]
+    }
   ]
 }
