@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-
+import { useState, useEffect, useMemo } from "react";
 import {
   Layout,
   Menu,
@@ -40,8 +39,12 @@ const WorkerLayout = () => {
   const [loading, setLoading] = useState(true);
 
   // Handle sidebar toggle
-  const toggleSidebar = () => {
-    setCollapsed(!collapsed);
+  const toggleSidebar = () => setCollapsed((prev) => !prev);
+
+  // Handle Worker Panel click (navigate + toggle sidebar)
+  const handleWorkerPanelClick = () => {
+    navigate("/worker/");
+    if (isMobile) toggleSidebar();
   };
 
   // Resize listener to adjust layout on different screen sizes
@@ -56,24 +59,51 @@ const WorkerLayout = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Fetch recent transactions
+  // Fetch recent transactions once on mount
   useEffect(() => {
     axios
       .get(`${API_URL}/worker/transactions`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "ngrok-skip-browser-warning": "true",
+        },
       })
       .then((response) => {
-        setTransactions(response.data);
+        if (Array.isArray(response.data)) {
+          setTransactions(response.data);
+        } else {
+          console.error("Invalid data format received:", response.data);
+          setTransactions([]);
+        }
       })
       .catch(() => console.error("Error fetching transactions"))
       .finally(() => setLoading(false));
   }, []);
 
-  // Handle menu clicks (auto-collapse sidebar on mobile)
-  const handleMenuClick = ({ key }) => {
-    navigate(key);
-    if (isMobile) setCollapsed(true); // Collapse sidebar after clicking on mobile
-  };
+  // Memoized check to avoid unnecessary re-renders
+  const isWorkerHome = useMemo(
+    () => location.pathname === "/worker/",
+    [location.pathname]
+  );
+
+  // Memoized transaction rendering function
+  const renderTransactionItem = (item) => (
+    <List.Item>
+      <List.Item.Meta
+        avatar={<CheckOutlined />}
+        title={
+          <Text strong>
+            {item.action
+              ? item.action.charAt(0).toUpperCase() + item.action.slice(1)
+              : "Unknown Action"}
+          </Text>
+        }
+        description={`Cylinder ID: ${item.cylinder_id || "N/A"} | Company: ${
+          item.company_name || "Unknown"
+        } | ${new Date(item.timestamp || Date.now()).toLocaleString()}`}
+      />
+    </List.Item>
+  );
 
   // Logout function
   const handleLogout = () => {
@@ -96,12 +126,28 @@ const WorkerLayout = () => {
         className="worker-sidebar"
         breakpoint="md"
       >
-        <div className="worker-logo">🚀 Worker Panel</div>
+        {/* Clickable Worker Panel Logo (Navigates & Toggles Sidebar) */}
+        <div
+          className="worker-logo"
+          onClick={handleWorkerPanelClick}
+          style={{
+            cursor: "pointer",
+            textAlign: "center",
+            padding: "12px 0",
+            fontWeight: "bold",
+            fontSize: "16px",
+          }}
+        >
+          🚀 Worker Panel
+        </div>
         <Menu
           theme="dark"
           mode="inline"
           selectedKeys={[location.pathname]}
-          onClick={handleMenuClick} // Auto-collapse on mobile
+          onClick={({ key }) => {
+            navigate(key);
+            if (isMobile) toggleSidebar();
+          }}
           items={[
             {
               key: "/worker/dispatch",
@@ -160,7 +206,7 @@ const WorkerLayout = () => {
         </Header>
 
         <Content className="worker-content">
-          {location.pathname === "/worker/" && (
+          {isWorkerHome && (
             <>
               {/* Quick Action Cards */}
               <Row
@@ -209,24 +255,7 @@ const WorkerLayout = () => {
                   <List
                     itemLayout="horizontal"
                     dataSource={transactions}
-                    renderItem={(item) => (
-                      <List.Item>
-                        <List.Item.Meta
-                          avatar={<CheckOutlined />}
-                          title={
-                            <Text strong>
-                              {item.action.charAt(0).toUpperCase() +
-                                item.action.slice(1)}
-                            </Text>
-                          }
-                          description={`Cylinder ID: ${
-                            item.cylinder_id
-                          } | Company: ${item.company_name} | ${new Date(
-                            item.timestamp
-                          ).toLocaleString()}`}
-                        />
-                      </List.Item>
-                    )}
+                    renderItem={renderTransactionItem}
                   />
                 )}
               </Card>

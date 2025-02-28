@@ -6,7 +6,6 @@ import {
   Card,
   Row,
   Col,
-  Checkbox,
   Switch,
   Modal,
   message,
@@ -59,13 +58,13 @@ const Receive = () => {
           Array.isArray(response.data) ? response.data : []
         );
         setSelectedCylinders([]);
-        setNotEmptyCylinders([]);
+        setNotEmptyCylinders([]); // Default all as EMPTY
       })
       .catch(() => message.error("Error fetching dispatched cylinders"));
   }, [companyId]);
 
-  // ✅ Select/Deselect Cylinder
-  const handleCylinderSelection = (serialNumber) => {
+  // ✅ Select/Deselect Cylinder (Clickable Card)
+  const toggleCylinderSelection = (serialNumber) => {
     setSelectedCylinders((prev) =>
       prev.includes(serialNumber)
         ? prev.filter((sn) => sn !== serialNumber)
@@ -73,12 +72,13 @@ const Receive = () => {
     );
   };
 
-  // ✅ Toggle "Not Empty" Status
+  // ✅ Toggle "Not Empty" Status (Defaults to EMPTY)
   const toggleNotEmpty = (serialNumber, checked) => {
-    setNotEmptyCylinders((prev) =>
-      checked
-        ? [...prev, serialNumber]
-        : prev.filter((sn) => sn !== serialNumber)
+    setNotEmptyCylinders(
+      (prev) =>
+        checked
+          ? [...prev, serialNumber] // Mark as NOT EMPTY
+          : prev.filter((sn) => sn !== serialNumber) // Keep it EMPTY (default)
     );
   };
 
@@ -90,7 +90,7 @@ const Receive = () => {
     console.log("🔹 Scanned QR Code:", serialNumber);
 
     if (dispatchedCylinders.some((c) => c.serial_number === serialNumber)) {
-      handleCylinderSelection(serialNumber);
+      toggleCylinderSelection(serialNumber);
       message.success(`Scanned: ${serialNumber}`);
     } else {
       message.warning("Scanned cylinder is not in the dispatched list.");
@@ -180,6 +180,7 @@ const Receive = () => {
         optionFilterProp="children"
         onChange={(value) => setCompanyId(value)}
         value={companyId}
+        style={{ width: "100%", marginBottom: "10px" }}
       >
         {companies.map((company) => (
           <Select.Option key={company.id} value={company.id}>
@@ -188,12 +189,17 @@ const Receive = () => {
         ))}
       </Select>
 
-      {/* ✅ Scan QR Code Button (Below Company Selection) */}
+      {/* ✅ Scan QR Code Button */}
       <Button
         type="primary"
         icon={<ScanOutlined />}
         onClick={startScanner}
-        style={{ marginTop: "10px", width: "100%" }}
+        style={{
+          width: "100%",
+          background: "#1890ff",
+          borderColor: "#1890ff",
+          marginBottom: "10px",
+        }}
       >
         Scan QR Code
       </Button>
@@ -211,49 +217,53 @@ const Receive = () => {
 
       <Divider />
 
-      {/* ✅ Cylinder List */}
-      {dispatchedCylinders.length > 0 ? (
-        <>
-          <Row gutter={[16, 16]} style={{ marginTop: "20px" }}>
-            {dispatchedCylinders.map((cylinder, index) => (
-              <Col
-                key={index}
-                xs={24}
-                sm={12}
-                md={8}
-                style={{ marginBottom: "10px" }}
-              >
-                <Checkbox
-                  checked={selectedCylinders.includes(cylinder.serial_number)}
-                  onChange={() =>
-                    handleCylinderSelection(cylinder.serial_number)
-                  }
-                >
-                  <Text strong>{cylinder.serial_number}</Text>
-                </Checkbox>
-                <Switch
-                  style={{ marginLeft: "10px" }}
-                  checked={notEmptyCylinders.includes(cylinder.serial_number)}
-                  onChange={(checked) =>
-                    toggleNotEmpty(cylinder.serial_number, checked)
-                  }
-                />
-                <Text style={{ marginLeft: "5px" }}>
-                  {notEmptyCylinders.includes(cylinder.serial_number)
-                    ? "Available"
-                    : "Empty"}
-                </Text>
-              </Col>
-            ))}
-          </Row>
+      {/* ✅ Cylinder List with Clickable Cards */}
+      <Row gutter={[16, 16]}>
+        {dispatchedCylinders.map((cylinder) => (
+          <Col key={cylinder.serial_number} xs={24} sm={12} md={8}>
+            <Card
+              className={`cylinder-card ${
+                selectedCylinders.includes(cylinder.serial_number)
+                  ? "selected"
+                  : ""
+              }`}
+              onClick={() => toggleCylinderSelection(cylinder.serial_number)}
+              style={{
+                cursor: "pointer",
+                background: selectedCylinders.includes(cylinder.serial_number)
+                  ? "#1890ff"
+                  : "#f5f5f5",
+                color: selectedCylinders.includes(cylinder.serial_number)
+                  ? "#fff"
+                  : "#333",
+                fontWeight: "bold",
+                transition: "0.3s ease",
+                textAlign: "center",
+                padding: "15px",
+                borderRadius: "8px",
+              }}
+            >
+              {cylinder.serial_number}
+            </Card>
+            {/* ✅ "Not Empty" Toggle (Separate Below) */}
+            <div style={{ textAlign: "center", marginTop: "8px" }}>
+              <Switch
+                checked={notEmptyCylinders.includes(cylinder.serial_number)}
+                onChange={(checked) =>
+                  toggleNotEmpty(cylinder.serial_number, checked)
+                }
+              />
+              <Text style={{ marginLeft: "8px" }}>
+                {notEmptyCylinders.includes(cylinder.serial_number)
+                  ? "Not Empty"
+                  : "Empty"}
+              </Text>
+            </div>
+          </Col>
+        ))}
+      </Row>
 
-          <Divider />
-        </>
-      ) : (
-        <Text type="secondary" style={{ marginTop: "20px", display: "block" }}>
-          No dispatched cylinders found.
-        </Text>
-      )}
+      <Divider />
 
       {/* ✅ Confirm Button */}
       <Button
@@ -262,7 +272,7 @@ const Receive = () => {
         icon={<DownloadOutlined />}
         disabled={selectedCylinders.length === 0}
         onClick={handleConfirmReceive}
-        style={{ marginTop: "20px", width: "100%" }}
+        style={{ width: "100%", background: "#1890ff", borderColor: "#1890ff" }}
       >
         Confirm Receive
       </Button>

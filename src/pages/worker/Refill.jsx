@@ -15,6 +15,7 @@ import { RetweetOutlined } from "@ant-design/icons";
 import "../../styles/Refill.css";
 
 const { Title, Text } = Typography;
+const { Panel } = Collapse;
 const SERVER_URL = import.meta.env.VITE_API_URL;
 
 const Refill = () => {
@@ -88,7 +89,15 @@ const Refill = () => {
 
   return (
     <Card className="refill-card">
-      <Title level={3} className="refill-title">
+      <Title
+        level={3}
+        className="refill-title"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+        }}
+      >
         <RetweetOutlined /> Send Cylinders for Refill
       </Title>
 
@@ -96,11 +105,19 @@ const Refill = () => {
       {emptyCylinders.length > 0 ? (
         <Collapse
           accordion
-          items={emptyCylinders.map((category, index) => ({
-            key: index.toString(),
-            label: `${category.gas_type} - ${category.size}L`,
-            children: (
-              <Row gutter={[16, 16]} style={{ marginTop: "10px" }}>
+          style={{ marginTop: "16px", borderRadius: "8px", background: "#fff" }}
+        >
+          {emptyCylinders.map((category, index) => (
+            <Panel
+              key={index}
+              header={
+                <Text strong style={{ fontSize: "16px" }}>
+                  {`${category.gas_type} - ${category.size}L`}
+                </Text>
+              }
+              style={{ background: "#f5f5f5", borderRadius: "8px" }}
+            >
+              <Row gutter={[12, 12]} style={{ padding: "8px 16px" }}>
                 {category.cylinders.map((cylinder) => (
                   <Col key={cylinder.serial_number} xs={12} sm={8} md={6}>
                     <Checkbox
@@ -108,17 +125,42 @@ const Refill = () => {
                         cylinder.serial_number
                       )}
                       onChange={() => toggleSelection(cylinder.serial_number)}
+                      style={{
+                        padding: "8px",
+                        borderRadius: "6px",
+                        background: selectedCylinders.includes(
+                          cylinder.serial_number
+                        )
+                          ? "#1890ff"
+                          : "#f5f5f5",
+                        color: selectedCylinders.includes(
+                          cylinder.serial_number
+                        )
+                          ? "#fff"
+                          : "#333",
+                        fontWeight: "bold",
+                        cursor: "pointer",
+                        transition: "0.3s ease",
+                      }}
                     >
                       {cylinder.serial_number}
                     </Checkbox>
                   </Col>
                 ))}
               </Row>
-            ),
-          }))}
-        />
+            </Panel>
+          ))}
+        </Collapse>
       ) : (
-        <Text type="secondary" style={{ marginTop: "20px", display: "block" }}>
+        <Text
+          type="secondary"
+          style={{
+            marginTop: "20px",
+            display: "block",
+            textAlign: "center",
+            fontSize: "16px",
+          }}
+        >
           No empty cylinders available for refill.
         </Text>
       )}
@@ -130,7 +172,15 @@ const Refill = () => {
         type="primary"
         onClick={handleSendForRefill}
         disabled={selectedCylinders.length === 0}
-        style={{ width: "100%", marginTop: "10px" }}
+        style={{
+          width: "100%",
+          padding: "12px",
+          fontSize: "16px",
+          fontWeight: "bold",
+          backgroundColor: "#1890ff",
+          borderColor: "#1890ff",
+          borderRadius: "8px",
+        }}
       >
         Send for Refill
       </Button>

@@ -1,16 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import {
-  Button,
-  Card,
-  Row,
-  Col,
-  Input,
-  message,
-  Typography,
-  Space,
-  Divider,
-} from "antd";
+import { Button, Card, Row, Col, Checkbox, Input, message } from "antd";
 import {
   CheckOutlined,
   SearchOutlined,
@@ -18,47 +8,44 @@ import {
   CloseOutlined,
 } from "@ant-design/icons";
 
-const { Title, Text } = Typography;
-const SERVER_URL = import.meta.env.VITE_API_URL;
+const SERVER_URL = import.meta.env.VITE_API_URL; // ✅ Now using environment variable
 
 const CompleteRefill = () => {
   const [refillingCylinders, setRefillingCylinders] = useState([]);
   const [filteredCylinders, setFilteredCylinders] = useState([]); // For search results
   const [selectedRefilled, setSelectedRefilled] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectAll, setSelectAll] = useState(false);
+  const [selectAll, setSelectAll] = useState(false); // Track select all state
 
-  // ✅ Fetch Cylinders That Are Being Refilled
+  // 🔹 Fetch Cylinders That Are Being Refilled
   useEffect(() => {
     axios
       .get(`${SERVER_URL}/refilling-cylinders`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "ngrok-skip-browser-warning": "true",
+          "ngrok-skip-browser-warning": "true", // ✅ Added for ngrok testing
         },
       })
       .then((response) => {
-        console.log("✅ Refilling Cylinders:", response.data);
-        setRefillingCylinders(
-          Array.isArray(response.data) ? response.data : []
-        );
-        setFilteredCylinders(Array.isArray(response.data) ? response.data : []);
+        setRefillingCylinders(response.data);
+        setFilteredCylinders(response.data); // Initialize filtered list
       })
       .catch(() => message.error("Error fetching refilling cylinders"));
   }, []);
 
-  // ✅ Search Cylinders
+  // 🔹 Handle Search Query
   const handleSearch = (e) => {
     const value = e.target.value.toLowerCase();
     setSearchQuery(value);
 
+    // Filter cylinders that match search input
     const filtered = refillingCylinders.filter((cylinder) =>
       cylinder.serial_number.toLowerCase().includes(value)
     );
     setFilteredCylinders(filtered);
   };
 
-  // ✅ Select/Deselect Cylinder
+  // 🔹 Handle Cylinder Selection
   const toggleSelection = (serialNumber) => {
     setSelectedRefilled((prev) =>
       prev.includes(serialNumber)
@@ -67,7 +54,7 @@ const CompleteRefill = () => {
     );
   };
 
-  // ✅ Select/Deselect All
+  // 🔹 Handle "Select All" Click
   const handleSelectAll = () => {
     if (selectAll) {
       setSelectedRefilled([]); // Deselect all
@@ -77,30 +64,26 @@ const CompleteRefill = () => {
     setSelectAll(!selectAll); // Toggle selectAll state
   };
 
-  // ✅ Mark as Refilled
+  // 🔹 Mark as Refilled
   const handleCompleteRefill = async () => {
     if (selectedRefilled.length === 0) {
-      message.warning(
-        "Please select at least one cylinder to mark as refilled."
-      );
+      message.warning("Select at least one cylinder to mark as refilled.");
       return;
     }
 
     try {
       await axios.post(
-        `${SERVER_URL}/complete-refill`,
+        `${SERVER_URL}/complete-refill`, // ✅ Now using SERVER_URL
         { cylinderIds: selectedRefilled },
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
-            "ngrok-skip-browser-warning": "true",
+            "ngrok-skip-browser-warning": "true", // ✅ For ngrok bypass
           },
         }
       );
 
       message.success("Cylinders marked as refilled!");
-
-      // ✅ Remove marked cylinders from the UI
       setRefillingCylinders((prev) =>
         prev.filter((c) => !selectedRefilled.includes(c.serial_number))
       );
@@ -116,22 +99,10 @@ const CompleteRefill = () => {
   };
 
   return (
-    <Card
-      className="complete-refill-card"
-      style={{
-        padding: "30px",
-        borderRadius: "15px",
-        boxShadow: "0px 8px 20px rgba(0, 0, 0, 0.1)",
-        background: "#ffffff",
-      }}
-    >
-      <Title
-        level={3}
-        className="complete-refill-title"
-        style={{ textAlign: "center" }}
-      >
-        <CheckOutlined style={{ color: "#1890ff" }} /> Complete Refill
-      </Title>
+    <Card className="complete-refill-card">
+      <h2 className="complete-refill-title">
+        <CheckOutlined /> Complete Refill
+      </h2>
 
       {/* 🔍 Search Bar */}
       <Input
@@ -140,95 +111,76 @@ const CompleteRefill = () => {
         value={searchQuery}
         onChange={handleSearch}
         className="search-bar"
-        style={{
-          width: "100%",
-          padding: "10px",
-          borderRadius: "8px",
-          border: "1px solid #d9d9d9",
-          marginBottom: "15px",
-        }}
+        style={{ marginBottom: "16px", width: "100%" }}
       />
 
-      <Space
+      {/* 🟢 Select All Button */}
+      <Button
+        type="default"
+        className="select-all-button"
+        onClick={handleSelectAll}
+        disabled={filteredCylinders.length === 0} // Disable if no cylinders
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: "15px",
+          width: "100%",
+          marginBottom: "12px",
+          padding: "10px",
+          fontSize: "16px",
+          fontWeight: "bold",
         }}
       >
-        {/* 🟢 Select All Button */}
-        {filteredCylinders.length > 0 && (
-          <Button
-            type="default"
-            icon={selectAll ? <DeselectOutlined /> : <SelectOutlined />}
-            onClick={handleSelectAll}
-            style={{
-              width: "48%",
-              background: selectAll ? "#ff4d4f" : "#1890ff",
-              color: "#fff",
-              borderRadius: "8px",
-            }}
-          >
-            {selectAll ? "Deselect All" : "Select All"}
-          </Button>
-        )}
+        {selectAll ? "Deselect All" : "Select All"}
+      </Button>
 
-        {/* ✅ Mark as Refilled Button */}
-        <Button
-          type="primary"
-          icon={<CheckOutlined />}
-          disabled={selectedRefilled.length === 0}
-          onClick={handleCompleteRefill}
-          style={{
-            width: "48%",
-            background: "#52c41a",
-            color: "#fff",
-            borderRadius: "8px",
-          }}
-        >
-          Mark as Refilled
-        </Button>
-      </Space>
+      {/* ✅ Cylinder Selection Grid */}
+      <h3>Select Refilled Cylinders:</h3>
+      <Row gutter={[16, 16]} style={{ marginBottom: "20px" }}>
+        {filteredCylinders.map((cylinder) => (
+          <Col key={cylinder.serial_number} xs={12} sm={8} md={6} lg={4}>
+            <Checkbox
+              className="cylinder-checkbox"
+              checked={selectedRefilled.includes(cylinder.serial_number)}
+              onChange={() => toggleSelection(cylinder.serial_number)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "10px",
+                borderRadius: "8px",
+                background: selectedRefilled.includes(cylinder.serial_number)
+                  ? "#1890ff"
+                  : "#f5f5f5",
+                color: selectedRefilled.includes(cylinder.serial_number)
+                  ? "#fff"
+                  : "#333",
+                fontWeight: "bold",
+                transition: "0.3s ease",
+                cursor: "pointer",
+              }}
+            >
+              {cylinder.serial_number}
+            </Checkbox>
+          </Col>
+        ))}
+      </Row>
 
-      <Divider />
-
-      {/* 🟢 Cylinder List */}
-      {filteredCylinders.length > 0 ? (
-        <Row gutter={[16, 16]} style={{ padding: "10px" }}>
-          {filteredCylinders.map((cylinder) => (
-            <Col key={cylinder.serial_number} xs={12} sm={8} md={6}>
-              <div
-                className="cylinder-card"
-                onClick={() => toggleSelection(cylinder.serial_number)}
-                style={{
-                  background: selectedRefilled.includes(cylinder.serial_number)
-                    ? "#1890ff"
-                    : "#f9f9f9",
-                  padding: "15px",
-                  borderRadius: "10px",
-                  textAlign: "center",
-                  fontSize: "16px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  transition: "all 0.3s",
-                  color: selectedRefilled.includes(cylinder.serial_number)
-                    ? "#fff"
-                    : "#000",
-                }}
-              >
-                {cylinder.serial_number}
-              </div>
-            </Col>
-          ))}
-        </Row>
-      ) : (
-        <Text
-          type="secondary"
-          style={{ marginTop: "20px", display: "block", textAlign: "center" }}
-        >
-          No cylinders available for refill completion.
-        </Text>
-      )}
+      {/* 🚀 Mark as Refilled Button */}
+      <Button
+        type="primary"
+        className="complete-refill-button"
+        icon={<CheckOutlined />}
+        disabled={selectedRefilled.length === 0}
+        onClick={handleCompleteRefill}
+        style={{
+          width: "100%",
+          padding: "14px",
+          fontSize: "16px",
+          fontWeight: "bold",
+          backgroundColor: "#52c41a",
+          borderColor: "#52c41a",
+        }}
+      >
+        Mark as Refilled
+      </Button>
     </Card>
   );
 };

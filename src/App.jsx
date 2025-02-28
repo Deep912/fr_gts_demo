@@ -18,11 +18,18 @@ import CompleteRefill from "./pages/worker/CompleteRefill";
 import TestScanner from "./TestScanner";
 
 const App = () => {
-  const [role, setRole] = useState(null);
+  const [role, setRole] = useState(localStorage.getItem("role") || null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setRole(localStorage.getItem("role")); // ✅ Ensure role updates
+    const storedRole = localStorage.getItem("role");
+    if (storedRole) {
+      setRole(storedRole);
+    }
+    setLoading(false);
   }, []);
+
+  if (loading) return null; // Prevent rendering before role is set
 
   return (
     <Router>
@@ -34,20 +41,22 @@ const App = () => {
         {/* ✅ Admin Routes */}
         <Route
           path="/admin/*"
-          element={role === "admin" ? <AdminLayout /> : <Navigate to="/" />}
+          element={
+            role === "admin" ? <AdminLayout /> : <Navigate to="/" replace />
+          }
         >
           <Route path="cylinders" element={<Cylinders />} />
           <Route path="companies" element={<Companies />} />
           <Route path="reports" element={<Reports />} />
         </Route>
 
-        {/* ✅ Worker Routes */}
+        {/* ✅ Worker Routes - No Redirect to /dispatch */}
         <Route
           path="/worker/*"
-          element={role === "worker" ? <WorkerLayout /> : <Navigate to="/" />}
+          element={
+            role === "worker" ? <WorkerLayout /> : <Navigate to="/" replace />
+          }
         >
-          <Route index element={<Navigate to="dispatch" />} />{" "}
-          {/* ✅ Redirect `/worker/` to `/worker/dispatch` */}
           <Route path="dispatch" element={<Dispatch />} />
           <Route path="receive" element={<Receive />} />
           <Route path="refill" element={<Refill />} />
@@ -55,7 +64,7 @@ const App = () => {
         </Route>
 
         {/* ✅ Catch-All 404 Route */}
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
