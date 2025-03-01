@@ -131,19 +131,24 @@ const Dispatch = () => {
   };
 
   // ✅ Accept Current Scan & Move to Next
+  // ✅ Accept Current Scan & Move to Next
   const acceptCurrentScan = () => {
     if (!currentScan) {
       message.warning("No cylinder scanned.");
       return;
     }
 
-    setTempScannedCylinders([...tempScannedCylinders, currentScan]);
-    setCurrentScan(null);
+    setTempScannedCylinders((prev) => {
+      const newScans = [...prev, currentScan];
+      setCurrentScan(null);
 
-    // ✅ Auto-close scanner when required quantity is scanned
-    if (tempScannedCylinders.length + 1 >= quantity) {
-      message.success("All required cylinders scanned!");
-    }
+      // ✅ Automatically close when required quantity is reached
+      if (newScans.length >= quantity) {
+        message.success("All required cylinders scanned!");
+      }
+
+      return newScans;
+    });
   };
 
   // ✅ Finalize Scanning & Select Cylinders
