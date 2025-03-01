@@ -168,15 +168,19 @@ const Dispatch = () => {
           const scanner = new Html5QrcodeScanner("reader", {
             fps: 10,
             qrbox: { width: 300, height: 300 },
-            disableFlip: false, // Allows scanning mirrored QR codes
-            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA], // Forces camera mode only
+            disableFlip: false, // Fixes issues with mirrored QR codes
+            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA], // Forces camera mode
           });
 
-          scanner.render(handleScan, (err) => {
-            console.error("QR Scanner Error:", err);
-            message.error(`Camera Error: ${err.message || "Failed to start"}`);
-            setScanning(false);
-          });
+          scanner.render(
+            (decodedText) => {
+              handleScan(decodedText); // Call the function when a QR code is detected
+              scanner.clear(); // Stop scanning after successful scan
+            },
+            (err) => {
+              console.error("QR Scanner Error:", err);
+            }
+          );
         }, 500);
       } catch (error) {
         console.error("Camera Initialization Error:", error);
@@ -344,7 +348,7 @@ const Dispatch = () => {
         {/* ✅ QR Scanner Modal */}
         <Modal open={scanning} onCancel={closeScanner} footer={null}>
           <h3>QR Code Scanner</h3>
-          <div id="reader"></div>
+          <div id="reader" style={{ width: "100%", height: "auto" }}></div>
 
           {currentScan && (
             <>
