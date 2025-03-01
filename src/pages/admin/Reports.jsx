@@ -11,7 +11,7 @@ import {
 } from "antd";
 import axios from "axios";
 import { FilePdfOutlined, FileExcelOutlined } from "@ant-design/icons";
-import { Bar, Pie } from "react-chartjs-2";
+import { Bar, Pie, Line } from "react-chartjs-2";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -22,6 +22,8 @@ import {
   LinearScale,
   BarElement,
   ArcElement,
+  LineElement,
+  PointElement,
   Title,
   Tooltip,
   Legend,
@@ -32,6 +34,8 @@ ChartJS.register(
   LinearScale,
   BarElement,
   ArcElement,
+  LineElement,
+  PointElement,
   Title,
   Tooltip,
   Legend
@@ -39,11 +43,15 @@ ChartJS.register(
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
+const SERVER_URL = import.meta.env.VITE_API_URL;
 
 const Reports = () => {
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [cylinderStatus, setCylinderStatus] = useState({});
+  const [topUsers, setTopUsers] = useState([]);
+  const [usageTrends, setUsageTrends] = useState([]);
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState([]);
   const [sortBy, setSortBy] = useState("timestamp");
@@ -52,6 +60,9 @@ const Reports = () => {
   useEffect(() => {
     fetchCylinderMovements();
     fetchSummaryData();
+    fetchCylinderStatus();
+    fetchTopUsers();
+    fetchUsageTrends();
   }, []);
 
   // 🔹 Fetch Cylinder Transactions
@@ -59,7 +70,7 @@ const Reports = () => {
     setLoading(true);
     try {
       const response = await axios.get(
-        "http://localhost:5000/admin/reports/cylinder-movement",
+        `${SERVER_URL}/admin/reports/cylinder-movement`,
         {
           params: {
             search,
@@ -68,7 +79,10 @@ const Reports = () => {
             sortBy,
             sortOrder,
           },
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "ngrok-skip-browser-warning": "true",
+          },
         }
       );
       setTransactions(response.data);
@@ -83,9 +97,12 @@ const Reports = () => {
   const fetchSummaryData = async () => {
     try {
       const response = await axios.get(
-        "http://localhost:5000/admin/reports/cylinder-movement-summary",
+        `${SERVER_URL}/admin/reports/cylinder-movement-summary`,
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "ngrok-skip-browser-warning": "true",
+          },
         }
       );
       setSummary(response.data);
@@ -95,49 +112,62 @@ const Reports = () => {
     }
   };
 
-  // 🔹 Handle Export to PDF
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.text("Cylinder Movement Report", 20, 10);
-    doc.autoTable({
-      head: [["Cylinder ID", "Action", "Performed By", "Timestamp"]],
-      body: transactions.map(
-        ({ cylinder_id, action, performed_by, timestamp }) => [
-          cylinder_id,
-          action,
-          performed_by,
-          new Date(timestamp).toLocaleString(),
-        ]
-      ),
-    });
-    doc.save("cylinder-movement-report.pdf");
+  // 🔹 Fetch Cylinder Status Breakdown
+  const fetchCylinderStatus = async () => {
+    try {
+      const response = await axios.get(
+        `${SERVER_URL}/admin/reports/cylinder-status`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "ngrok-skip-browser-warning": "true",
+          },
+        }
+      );
+      setCylinderStatus(response.data);
+    } catch (error) {
+      console.error("Failed to fetch cylinder status:", error);
+      message.error("Failed to load cylinder status.");
+    }
   };
 
-  // 🔹 Table Columns
-  const columns = [
-    {
-      title: "Cylinder ID",
-      dataIndex: "cylinder_id",
-      key: "cylinder_id",
-      sorter: () => {},
-    },
-    {
-      title: "Action",
-      dataIndex: "action",
-      key: "action",
-    },
-    {
-      title: "Performed By",
-      dataIndex: "performed_by",
-      key: "performed_by",
-    },
-    {
-      title: "Timestamp",
-      dataIndex: "timestamp",
-      key: "timestamp",
-      render: (text) => new Date(text).toLocaleString(),
-    },
-  ];
+  // 🔹 Fetch Top Users Performing Actions
+  const fetchTopUsers = async () => {
+    try {
+      const response = await axios.get(
+        `${SERVER_URL}/admin/reports/top-users`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "ngrok-skip-browser-warning": "true",
+          },
+        }
+      );
+      setTopUsers(response.data);
+    } catch (error) {
+      console.error("Failed to fetch top users:", error);
+      message.error("Failed to load top users.");
+    }
+  };
+
+  // 🔹 Fetch Cylinder Usage Trends
+  const fetchUsageTrends = async () => {
+    try {
+      const response = await axios.get(
+        `${SERVER_URL}/admin/reports/usage-trends`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "ngrok-skip-browser-warning": "true",
+          },
+        }
+      );
+      setUsageTrends(response.data);
+    } catch (error) {
+      console.error("Failed to fetch usage trends:", error);
+      message.error("Failed to load usage trends.");
+    }
+  };
 
   // 🔹 Prepare Chart Data
   const actionCounts = transactions.reduce((acc, { action }) => {
@@ -201,21 +231,38 @@ const Reports = () => {
         </div>
       )}
 
-      {/* Chart */}
-      <div style={{ display: "flex", gap: "20px", marginBottom: "20px" }}>
-        <Card title="Cylinder Action Breakdown" style={{ flex: 1 }}>
-          <Bar data={chartData} options={{ responsive: true }} />
-        </Card>
-        <Card title="Action Distribution" style={{ flex: 1 }}>
-          <Pie data={chartData} options={{ responsive: true }} />
-        </Card>
-      </div>
+      {/* Charts */}
+      <Card title="Cylinder Action Breakdown">
+        <Bar data={chartData} options={{ responsive: true }} />
+      </Card>
 
       {/* Table */}
       {loading ? (
         <Spin />
       ) : (
-        <Table dataSource={transactions} columns={columns} rowKey="id" />
+        <Table
+          dataSource={transactions}
+          columns={[
+            {
+              title: "Cylinder ID",
+              dataIndex: "cylinder_id",
+              key: "cylinder_id",
+            },
+            { title: "Action", dataIndex: "action", key: "action" },
+            {
+              title: "Performed By",
+              dataIndex: "performed_by",
+              key: "performed_by",
+            },
+            {
+              title: "Timestamp",
+              dataIndex: "timestamp",
+              key: "timestamp",
+              render: (text) => new Date(text).toLocaleString(),
+            },
+          ]}
+          rowKey="id"
+        />
       )}
 
       {/* Export Buttons */}
@@ -227,7 +274,7 @@ const Reports = () => {
         >
           <FileExcelOutlined /> Export CSV
         </CSVLink>
-        <Button onClick={exportToPDF}>
+        <Button>
           <FilePdfOutlined /> Export PDF
         </Button>
       </div>
