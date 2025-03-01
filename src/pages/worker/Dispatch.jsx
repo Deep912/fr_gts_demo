@@ -379,7 +379,7 @@ const Dispatch = () => {
               </p>
 
               {/* ✅ Show "Next" until the required quantity is scanned */}
-              {tempScannedCylinders.length < quantity - 1 && (
+              {tempScannedCylinders.length < quantity && (
                 <Button type="primary" onClick={acceptCurrentScan}>
                   Next
                 </Button>
