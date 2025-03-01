@@ -8,6 +8,8 @@ import {
   UndoOutlined,
 } from "@ant-design/icons";
 
+const SERVER_URL = import.meta.env.VITE_API_URL;
+
 const Companies = () => {
   const [companies, setCompanies] = useState([]);
   const [deletedCompanies, setDeletedCompanies] = useState([]);
@@ -28,8 +30,11 @@ const Companies = () => {
   const loadCompanies = () => {
     setLoading(true);
     axios
-      .get("http://localhost:5000/admin/companies", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      .get(`${SERVER_URL}/admin/companies`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "ngrok-skip-browser-warning": "true",
+        },
       })
       .then((response) => setCompanies(response.data))
       .catch(() => message.error("Error fetching companies"))
@@ -39,8 +44,11 @@ const Companies = () => {
   const loadDeletedCompanies = () => {
     setLoading(true);
     axios
-      .get("http://localhost:5000/admin/deleted-companies", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      .get(`${SERVER_URL}/admin/deleted-companies`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "ngrok-skip-browser-warning": "true",
+        },
       })
       .then((response) => setDeletedCompanies(response.data))
       .catch(() => message.error("Error fetching deleted companies"))
@@ -52,15 +60,12 @@ const Companies = () => {
     if (editCompany) {
       // Update existing company
       axios
-        .put(
-          `http://localhost:5000/admin/update-company/${editCompany.id}`,
-          values,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        )
+        .put(`${SERVER_URL}/admin/update-company/${editCompany.id}`, values, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "ngrok-skip-browser-warning": "true",
+          },
+        })
         .then(() => {
           message.success("Company updated successfully!");
           setIsModalVisible(false);
@@ -71,8 +76,11 @@ const Companies = () => {
     } else {
       // Add new company
       axios
-        .post("http://localhost:5000/admin/add-company", values, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        .post(`${SERVER_URL}/admin/add-company`, values, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "ngrok-skip-browser-warning": "true",
+          },
         })
         .then(() => {
           message.success("Company added successfully!");
@@ -88,10 +96,13 @@ const Companies = () => {
   const handleDelete = (id) => {
     axios
       .post(
-        "http://localhost:5000/admin/delete-company",
+        `${SERVER_URL}/admin/delete-company`,
         { id },
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "ngrok-skip-browser-warning": "true",
+          },
         }
       )
       .then(() => {
@@ -106,10 +117,13 @@ const Companies = () => {
   const handleRecover = (id) => {
     axios
       .post(
-        "http://localhost:5000/admin/recover-company",
+        `${SERVER_URL}/admin/recover-company`,
         { id },
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "ngrok-skip-browser-warning": "true",
+          },
         }
       )
       .then(() => {
