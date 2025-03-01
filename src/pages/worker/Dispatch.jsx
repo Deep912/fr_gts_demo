@@ -384,13 +384,6 @@ const Dispatch = () => {
                   Next
                 </Button>
               )}
-
-              {/* ✅ Show "Done" when all scans are completed */}
-              {tempScannedCylinders.length === quantity - 1 && (
-                <Button type="primary" onClick={acceptCurrentScan}>
-                  Scan Last Cylinder
-                </Button>
-              )}
             </>
           )}
 
