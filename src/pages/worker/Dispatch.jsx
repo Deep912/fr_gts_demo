@@ -141,14 +141,18 @@ const Dispatch = () => {
     setTempScannedCylinders((prev) => {
       const newScans = [...prev, currentScan];
 
-      // ✅ Reset currentScan to allow next scan
+      // ✅ Reset for next scan
       setCurrentScan(null);
 
-      // ✅ Ensure re-render happens so the Next button stays
+      // ✅ Ensure "Next" keeps working until quantity is met
       if (newScans.length < quantity) {
-        message.success(`Cylinder ${currentScan} scanned. Scan next.`);
+        message.success(
+          `Cylinder ${currentScan} scanned. Please scan the next one.`
+        );
       } else {
-        message.success("All required cylinders scanned!");
+        message.success(
+          "All required cylinders scanned! Click 'Done' to proceed."
+        );
       }
 
       return newScans;
@@ -176,19 +180,15 @@ const Dispatch = () => {
     if (scanning) {
       try {
         setTimeout(() => {
-          scanner = new Html5QrcodeScanner(
-            "reader", // This is the div ID where the camera will be placed
-            {
-              fps: 10,
-              qrbox: { width: 300, height: 300 },
-              disableFlip: false, // Fixes mirrored QR issues
-            }
-          );
+          scanner = new Html5QrcodeScanner("reader", {
+            fps: 10,
+            qrbox: { width: 300, height: 300 },
+            disableFlip: false,
+          });
 
           scanner.render(
             (decodedText) => {
               handleScan(decodedText); // Process scanned QR
-              scanner.clear(); // Stop scanning after success
             },
             (err) => {
               console.warn("QR Scanner Error:", err);
@@ -202,7 +202,6 @@ const Dispatch = () => {
       }
     }
 
-    // ✅ Cleanup function to properly stop scanner
     return () => {
       if (scanner) {
         scanner.clear();
@@ -372,30 +371,38 @@ const Dispatch = () => {
           {/* ✅ QR Scanner UI */}
           <div id="reader" style={{ width: "100%", height: "auto" }}></div>
 
-          {/* ✅ Show Scanned Cylinder ID */}
+          {/* ✅ Show the last scanned Cylinder ID */}
           {currentScan && (
             <>
               <p>
                 <strong>Scanned Cylinder ID:</strong> {currentScan}
               </p>
-              {/* ✅ Show "Next" only if more scans are needed */}
+
+              {/* ✅ Show "Next" until the required quantity is scanned */}
               {tempScannedCylinders.length < quantity - 1 && (
                 <Button type="primary" onClick={acceptCurrentScan}>
                   Next
+                </Button>
+              )}
+
+              {/* ✅ Show "Done" when all scans are completed */}
+              {tempScannedCylinders.length === quantity - 1 && (
+                <Button type="primary" onClick={acceptCurrentScan}>
+                  Scan Last Cylinder
                 </Button>
               )}
             </>
           )}
 
           <div style={{ marginTop: "15px" }}>
-            {/* ✅ Show "Done" after scanning the required quantity */}
+            {/* ✅ Show "Done" after scanning required quantity */}
             {tempScannedCylinders.length === quantity && (
               <Button type="primary" onClick={finalizeScanning}>
                 Done
               </Button>
             )}
 
-            {/* ✅ Always show "Close" to cancel */}
+            {/* ✅ Always show "Close" to cancel scanning */}
             <Button type="default" onClick={closeScanner}>
               Close
             </Button>
