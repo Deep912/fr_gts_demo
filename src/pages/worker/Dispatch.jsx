@@ -163,17 +163,29 @@ const Dispatch = () => {
   // ✅ Effect to Start Scanner
   useEffect(() => {
     if (scanning) {
-      setTimeout(() => {
-        const scanner = new Html5QrcodeScanner("reader", {
-          fps: 10,
-          qrbox: { width: 300, height: 300 },
-        });
-        scanner.render(handleScan, () =>
-          message.error("Error scanning QR code.")
-        );
-      }, 500);
+      try {
+        setTimeout(() => {
+          const scanner = new Html5QrcodeScanner("reader", {
+            fps: 10,
+            qrbox: { width: 300, height: 300 },
+            disableFlip: false, // Allows scanning mirrored QR codes
+            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA], // Forces camera mode only
+          });
+
+          scanner.render(handleScan, (err) => {
+            console.error("QR Scanner Error:", err);
+            message.error(`Camera Error: ${err.message || "Failed to start"}`);
+            setScanning(false);
+          });
+        }, 500);
+      } catch (error) {
+        console.error("Camera Initialization Error:", error);
+        message.error("Failed to access camera. Please check permissions.");
+        setScanning(false);
+      }
     }
   }, [scanning]);
+
   // ✅ Confirm Dispatch
 
   const handleConfirmDispatch = async () => {
