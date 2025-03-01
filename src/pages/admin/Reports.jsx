@@ -8,6 +8,8 @@ import {
   Select,
   message,
   Spin,
+  Row,
+  Col,
 } from "antd";
 import axios from "axios";
 import { FilePdfOutlined, FileExcelOutlined } from "@ant-design/icons";
@@ -49,29 +51,21 @@ const Reports = () => {
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [summary, setSummary] = useState(null);
-  const [cylinderStatus, setCylinderStatus] = useState({});
-  const [topUsers, setTopUsers] = useState([]);
-  const [usageTrends, setUsageTrends] = useState([]);
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState([]);
   const [sortBy, setSortBy] = useState("timestamp");
   const [sortOrder, setSortOrder] = useState("desc");
 
   useEffect(() => {
-    fetchCylinderMovements();
-    fetchSummaryData();
-    fetchCylinderStatus();
-    fetchTopUsers();
-    fetchUsageTrends();
+    fetchData();
   }, []);
 
-  // 🔹 Fetch Cylinder Transactions
-  const fetchCylinderMovements = async () => {
+  // 🔹 Fetch all required data
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(
-        `${SERVER_URL}/admin/reports/cylinder-movement`,
-        {
+      const [transactionsRes, summaryRes] = await Promise.all([
+        axios.get(`${SERVER_URL}/admin/reports/cylinder-movement`, {
           params: {
             search,
             start: dateRange[0],
@@ -83,93 +77,25 @@ const Reports = () => {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
             "ngrok-skip-browser-warning": "true",
           },
-        }
-      );
-      setTransactions(response.data);
-    } catch (error) {
-      console.error("Failed to fetch cylinder movements:", error);
-      message.error("Failed to load cylinder movement data.");
-    }
-    setLoading(false);
-  };
-
-  // 🔹 Fetch Cylinder Movement Summary
-  const fetchSummaryData = async () => {
-    try {
-      const response = await axios.get(
-        `${SERVER_URL}/admin/reports/cylinder-movement-summary`,
-        {
+        }),
+        axios.get(`${SERVER_URL}/admin/reports/cylinder-movement-summary`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
             "ngrok-skip-browser-warning": "true",
           },
-        }
-      );
-      setSummary(response.data);
+        }),
+      ]);
+
+      setTransactions(transactionsRes.data);
+      setSummary(summaryRes.data);
     } catch (error) {
-      console.error("Failed to fetch summary:", error);
-      message.error("Failed to load cylinder movement summary.");
+      message.error("Failed to load data.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 🔹 Fetch Cylinder Status Breakdown
-  const fetchCylinderStatus = async () => {
-    try {
-      const response = await axios.get(
-        `${SERVER_URL}/admin/reports/cylinder-status`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-            "ngrok-skip-browser-warning": "true",
-          },
-        }
-      );
-      setCylinderStatus(response.data);
-    } catch (error) {
-      console.error("Failed to fetch cylinder status:", error);
-      message.error("Failed to load cylinder status.");
-    }
-  };
-
-  // 🔹 Fetch Top Users Performing Actions
-  const fetchTopUsers = async () => {
-    try {
-      const response = await axios.get(
-        `${SERVER_URL}/admin/reports/top-users`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-            "ngrok-skip-browser-warning": "true",
-          },
-        }
-      );
-      setTopUsers(response.data);
-    } catch (error) {
-      console.error("Failed to fetch top users:", error);
-      message.error("Failed to load top users.");
-    }
-  };
-
-  // 🔹 Fetch Cylinder Usage Trends
-  const fetchUsageTrends = async () => {
-    try {
-      const response = await axios.get(
-        `${SERVER_URL}/admin/reports/usage-trends`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-            "ngrok-skip-browser-warning": "true",
-          },
-        }
-      );
-      setUsageTrends(response.data);
-    } catch (error) {
-      console.error("Failed to fetch usage trends:", error);
-      message.error("Failed to load usage trends.");
-    }
-  };
-
-  // 🔹 Prepare Chart Data
+  // 🔹 Generate Chart Data
   const actionCounts = transactions.reduce((acc, { action }) => {
     acc[action] = (acc[action] || 0) + 1;
     return acc;
@@ -181,64 +107,111 @@ const Reports = () => {
       {
         label: "Cylinder Actions",
         data: Object.values(actionCounts),
-        backgroundColor: ["#3e95cd", "#8e5ea2", "#3cba9f", "#e8c3b9"],
+        backgroundColor: ["#3E95CD", "#8E5EA2", "#3CBA9F", "#E8C3B9"],
       },
     ],
   };
 
-  return (
-    <Card title="Cylinder Movement Report">
-      {/* Filters */}
-      <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
-        <RangePicker
-          onChange={(dates) =>
-            setDateRange(dates?.map((d) => d.toISOString()) || [])
-          }
-        />
-        <Input
-          placeholder="Search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <Select defaultValue="timestamp" onChange={setSortBy}>
-          <Option value="cylinder_id">Cylinder ID</Option>
-          <Option value="action">Action</Option>
-          <Option value="timestamp">Date</Option>
-        </Select>
-        <Select defaultValue="desc" onChange={setSortOrder}>
-          <Option value="asc">Ascending</Option>
-          <Option value="desc">Descending</Option>
-        </Select>
-        <Button type="primary" onClick={fetchCylinderMovements}>
-          Filter
-        </Button>
-      </div>
+  // 🔹 Export to PDF
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.text("Cylinder Movement Report", 20, 10);
+    doc.autoTable({
+      head: [["Cylinder ID", "Action", "Performed By", "Timestamp"]],
+      body: transactions.map(
+        ({ cylinder_id, action, performed_by, timestamp }) => [
+          cylinder_id,
+          action,
+          performed_by,
+          new Date(timestamp).toLocaleString(),
+        ]
+      ),
+    });
+    doc.save("cylinder-movement-report.pdf");
+  };
 
-      {/* Summary Cards */}
+  return (
+    <Card title="Cylinder Movement Report" style={{ padding: "20px" }}>
+      {/* 🔹 Filter Section */}
+      <Row gutter={16} style={{ marginBottom: "20px" }}>
+        <Col xs={24} sm={8}>
+          <RangePicker
+            onChange={(dates) =>
+              setDateRange(dates?.map((d) => d.toISOString()) || [])
+            }
+          />
+        </Col>
+        <Col xs={24} sm={8}>
+          <Input
+            placeholder="Search Cylinder ID"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </Col>
+        <Col xs={12} sm={4}>
+          <Select
+            defaultValue="timestamp"
+            onChange={setSortBy}
+            style={{ width: "100%" }}
+          >
+            <Option value="cylinder_id">Cylinder ID</Option>
+            <Option value="action">Action</Option>
+            <Option value="timestamp">Date</Option>
+          </Select>
+        </Col>
+        <Col xs={12} sm={4}>
+          <Select
+            defaultValue="desc"
+            onChange={setSortOrder}
+            style={{ width: "100%" }}
+          >
+            <Option value="asc">Ascending</Option>
+            <Option value="desc">Descending</Option>
+          </Select>
+        </Col>
+      </Row>
+
+      {/* 🔹 Summary Cards */}
       {summary && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginBottom: "15px",
-          }}
-        >
-          <Card title="Total Transactions">{summary.total_transactions}</Card>
-          <Card title="Unique Cylinders Moved">{summary.unique_cylinders}</Card>
-          <Card title="Last Activity">
-            {new Date(summary.latest_activity).toLocaleString()}
-          </Card>
-        </div>
+        <Row gutter={16} style={{ marginBottom: "20px" }}>
+          <Col xs={24} sm={8}>
+            <Card title="Total Transactions" style={{ textAlign: "center" }}>
+              <h2>{summary.total_transactions}</h2>
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card
+              title="Unique Cylinders Moved"
+              style={{ textAlign: "center" }}
+            >
+              <h2>{summary.unique_cylinders}</h2>
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card title="Last Activity" style={{ textAlign: "center" }}>
+              <h2>{new Date(summary.latest_activity).toLocaleString()}</h2>
+            </Card>
+          </Col>
+        </Row>
       )}
 
-      {/* Charts */}
-      <Card title="Cylinder Action Breakdown">
-        <Bar data={chartData} options={{ responsive: true }} />
-      </Card>
+      {/* 🔹 Charts */}
+      <Row gutter={16} style={{ marginBottom: "20px" }}>
+        <Col xs={24} sm={12}>
+          <Card title="Cylinder Actions">
+            <Bar data={chartData} options={{ responsive: true }} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Card title="Action Distribution">
+            <Pie data={chartData} options={{ responsive: true }} />
+          </Card>
+        </Col>
+      </Row>
 
-      {/* Table */}
+      {/* 🔹 Data Table */}
       {loading ? (
-        <Spin />
+        <Spin size="large" />
       ) : (
         <Table
           dataSource={transactions}
@@ -262,10 +235,11 @@ const Reports = () => {
             },
           ]}
           rowKey="id"
+          pagination={{ pageSize: 10 }}
         />
       )}
 
-      {/* Export Buttons */}
+      {/* 🔹 Export Buttons */}
       <div style={{ marginTop: "15px", display: "flex", gap: "10px" }}>
         <CSVLink
           data={transactions}
@@ -274,7 +248,7 @@ const Reports = () => {
         >
           <FileExcelOutlined /> Export CSV
         </CSVLink>
-        <Button>
+        <Button onClick={exportToPDF}>
           <FilePdfOutlined /> Export PDF
         </Button>
       </div>
