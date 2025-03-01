@@ -205,6 +205,7 @@ const Receive = () => {
       </Button>
 
       {/* ✅ QR Code Scanner Modal */}
+      {/* ✅ QR Code Scanner Modal */}
       <Modal
         title="Scan QR Codes"
         open={scanning}
@@ -213,6 +214,32 @@ const Receive = () => {
         width={400}
       >
         <div id="reader"></div>
+
+        {/* ✅ Display Scanned Cylinders */}
+        {selectedCylinders.length > 0 && (
+          <div style={{ marginTop: "15px" }}>
+            <Text strong>Scanned Cylinders:</Text>
+            <ul>
+              {selectedCylinders.map((sn) => (
+                <li key={sn}>{sn}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* ✅ Control Buttons */}
+        <div style={{ marginTop: "15px", textAlign: "center" }}>
+          <Button type="primary" onClick={() => setScanning(false)}>
+            Done (Save)
+          </Button>
+          <Button
+            type="default"
+            onClick={() => setScanning(false)}
+            style={{ marginLeft: "10px" }}
+          >
+            Cancel
+          </Button>
+        </div>
       </Modal>
 
       <Divider />
