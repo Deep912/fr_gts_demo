@@ -122,8 +122,9 @@ const Dispatch = () => {
     if (!decodedText) return;
     const serialNumber = decodedText.trim();
 
+    // ❌ Prevent duplicate scans
     if (tempScannedCylinders.includes(serialNumber)) {
-      message.warning(`Cylinder ${serialNumber} is already scanned.`);
+      message.error(`Cylinder ${serialNumber} is already scanned!`);
       return;
     }
 
@@ -138,25 +139,24 @@ const Dispatch = () => {
       return;
     }
 
-    setTempScannedCylinders((prev) => {
-      const newScans = [...prev, currentScan];
+    if (tempScannedCylinders.includes(currentScan)) {
+      message.error(`Cylinder ${currentScan} is already scanned!`);
+      return;
+    }
 
-      // ✅ Reset for next scan
-      setCurrentScan(null);
+    const updatedScannedCylinders = [...tempScannedCylinders, currentScan];
+    setTempScannedCylinders(updatedScannedCylinders);
+    setCurrentScan(null);
 
-      // ✅ Ensure "Next" keeps working until quantity is met
-      if (newScans.length < quantity) {
-        message.success(
-          `Cylinder ${currentScan} scanned. Please scan the next one.`
-        );
-      } else {
-        message.success(
-          "All required cylinders scanned! Click 'Done' to proceed."
-        );
-      }
-
-      return newScans;
-    });
+    if (updatedScannedCylinders.length < quantity) {
+      message.success(
+        `Cylinder ${currentScan} scanned. Please scan the next one.`
+      );
+    } else {
+      message.success(
+        "All required cylinders scanned! Click 'Done' to proceed."
+      );
+    }
   };
 
   // ✅ Finalize Scanning & Select Cylinders
