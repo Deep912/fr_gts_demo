@@ -31,7 +31,7 @@ const Login = () => {
         // Redirect based on user role
         setTimeout(() => {
           if (response.data.user.role === "admin") {
-            window.location.href = "https://fr-gts-demo-1bvh.vercel.app/admin";
+            window.location.href = "/admin";
           } else {
             window.location.href = "/worker/";
           }

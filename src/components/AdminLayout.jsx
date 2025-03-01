@@ -66,13 +66,22 @@ const AdminLayout = () => {
         const [statsRes, transactionsRes, cylinderStatsRes] = await Promise.all(
           [
             axios.get(`${SERVER_URL}/admin/stats`, {
-              headers: { Authorization: `Bearer ${token}` },
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "ngrok-skip-browser-warning": "true",
+              },
             }),
             axios.get(`${SERVER_URL}/admin/transactions`, {
-              headers: { Authorization: `Bearer ${token}` },
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "ngrok-skip-browser-warning": "true",
+              },
             }),
             axios.get(`${SERVER_URL}/admin/reports/cylinder-movement-summary`, {
-              headers: { Authorization: `Bearer ${token}` },
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "ngrok-skip-browser-warning": "true",
+              },
             }),
           ]
         );
@@ -123,7 +132,7 @@ const AdminLayout = () => {
             cursor: "pointer",
             padding: "16px",
             textAlign: "center",
-            fontSize: "16px",
+            fontSize: "18px",
             fontWeight: "bold",
             backgroundColor: "#001529",
             color: "#fff",
@@ -140,7 +149,7 @@ const AdminLayout = () => {
           onClick={handleMenuClick}
           items={[
             {
-              key: "/admin/dashboard",
+              key: "/admin",
               icon: <DashboardOutlined />,
               label: "Dashboard",
             },

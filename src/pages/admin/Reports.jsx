@@ -57,6 +57,7 @@ const Reports = () => {
     fetchSummaryData();
   }, []);
 
+  // ✅ Fetch Cylinder Transactions with ngrok bypass
   const fetchCylinderMovements = async () => {
     setLoading(true);
     try {
@@ -65,37 +66,49 @@ const Reports = () => {
         {
           params: {
             search,
-            start: dateRange[0],
-            end: dateRange[1],
+            start: dateRange[0] || "",
+            end: dateRange[1] || "",
             sortBy,
             sortOrder,
           },
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "ngrok-skip-browser-warning": "true",
+          },
         }
       );
+
+      console.log("✅ API Response (Cylinder Movements):", response.data);
       setTransactions(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error("Failed to fetch cylinder movements:", error);
+      console.error("❌ Failed to fetch cylinder movements:", error);
       message.error("Failed to load cylinder movement data.");
     }
     setLoading(false);
   };
 
+  // ✅ Fetch Summary Data with ngrok bypass
   const fetchSummaryData = async () => {
     try {
       const response = await axios.get(
         `${SERVER_URL}/admin/reports/cylinder-movement-summary`,
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "ngrok-skip-browser-warning": "true",
+          },
         }
       );
+
+      console.log("✅ API Response (Summary Data):", response.data);
       setSummary(response.data);
     } catch (error) {
-      console.error("Failed to fetch summary:", error);
+      console.error("❌ Failed to fetch summary:", error);
       message.error("Failed to load cylinder movement summary.");
     }
   };
 
+  // ✅ Export to PDF
   const exportToPDF = () => {
     const doc = new jsPDF();
     doc.text("Cylinder Movement Report", 20, 10);
@@ -113,10 +126,14 @@ const Reports = () => {
     doc.save("cylinder-movement-report.pdf");
   };
 
-  const actionCounts = (transactions || []).reduce((acc, { action }) => {
-    acc[action] = (acc[action] || 0) + 1;
-    return acc;
-  }, {});
+  // ✅ Process Action Data for Charts
+  const actionCounts = (Array.isArray(transactions) ? transactions : []).reduce(
+    (acc, { action }) => {
+      acc[action] = (acc[action] || 0) + 1;
+      return acc;
+    },
+    {}
+  );
 
   const chartData = {
     labels: Object.keys(actionCounts),
@@ -131,6 +148,7 @@ const Reports = () => {
 
   return (
     <Card title="Cylinder Movement Report">
+      {/* ✅ Filter Section */}
       <div
         style={{ background: "#f8f9fa", padding: "15px", borderRadius: "5px" }}
       >
@@ -177,6 +195,8 @@ const Reports = () => {
           </Col>
         </Row>
       </div>
+
+      {/* ✅ Summary Section */}
       {summary && (
         <Row gutter={[16, 16]} style={{ marginTop: "20px" }}>
           <Col xs={24} sm={8}>
@@ -194,6 +214,8 @@ const Reports = () => {
           </Col>
         </Row>
       )}
+
+      {/* ✅ Charts Section */}
       <Row gutter={[16, 16]} style={{ marginTop: "20px" }}>
         <Col span={12}>
           <Bar data={chartData} options={{ responsive: true }} />
@@ -202,6 +224,8 @@ const Reports = () => {
           <Pie data={chartData} options={{ responsive: true }} />
         </Col>
       </Row>
+
+      {/* ✅ Table Section */}
       {loading ? (
         <Spin />
       ) : (
@@ -220,6 +244,8 @@ const Reports = () => {
           rowKey="id"
         />
       )}
+
+      {/* ✅ Export Buttons */}
       <div style={{ marginTop: "15px", display: "flex", gap: "10px" }}>
         <CSVLink
           data={transactions}
