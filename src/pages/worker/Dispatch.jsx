@@ -140,10 +140,14 @@ const Dispatch = () => {
 
     setTempScannedCylinders((prev) => {
       const newScans = [...prev, currentScan];
+
+      // ✅ Reset currentScan to allow next scan
       setCurrentScan(null);
 
-      // ✅ Automatically close when required quantity is reached
-      if (newScans.length >= quantity) {
+      // ✅ Ensure re-render happens so the Next button stays
+      if (newScans.length < quantity) {
+        message.success(`Cylinder ${currentScan} scanned. Scan next.`);
+      } else {
         message.success("All required cylinders scanned!");
       }
 
@@ -365,34 +369,36 @@ const Dispatch = () => {
         <Modal open={scanning} onCancel={closeScanner} footer={null}>
           <h3>QR Code Scanner</h3>
 
-          {/* ✅ This is where the scanner will attach */}
+          {/* ✅ QR Scanner UI */}
           <div id="reader" style={{ width: "100%", height: "auto" }}></div>
 
+          {/* ✅ Show Scanned Cylinder ID */}
           {currentScan && (
             <>
               <p>
                 <strong>Scanned Cylinder ID:</strong> {currentScan}
               </p>
-              <Button
-                type="primary"
-                onClick={acceptCurrentScan}
-                disabled={tempScannedCylinders.length >= quantity}
-              >
-                Next
-              </Button>
+              {/* ✅ Show "Next" only if more scans are needed */}
+              {tempScannedCylinders.length < quantity - 1 && (
+                <Button type="primary" onClick={acceptCurrentScan}>
+                  Next
+                </Button>
+              )}
             </>
           )}
 
           <div style={{ marginTop: "15px" }}>
-            {tempScannedCylinders.length >= quantity ? (
+            {/* ✅ Show "Done" after scanning the required quantity */}
+            {tempScannedCylinders.length === quantity && (
               <Button type="primary" onClick={finalizeScanning}>
                 Done
               </Button>
-            ) : (
-              <Button type="default" onClick={closeScanner}>
-                Close
-              </Button>
             )}
+
+            {/* ✅ Always show "Close" to cancel */}
+            <Button type="default" onClick={closeScanner}>
+              Close
+            </Button>
           </div>
         </Modal>
 
