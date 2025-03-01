@@ -32,7 +32,7 @@ const AdminLayout = () => {
   const location = useLocation();
   const username = localStorage.getItem("username") || "Admin";
 
-  // Sidebar state
+  // Sidebar state & responsiveness
   const [collapsed, setCollapsed] = useState(window.innerWidth < 768);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [stats, setStats] = useState(null);
@@ -45,7 +45,7 @@ const AdminLayout = () => {
     setCollapsed(!collapsed);
   };
 
-  // Resize listener for responsiveness
+  // Adjust layout on window resize
   useEffect(() => {
     const handleResize = () => {
       const mobileView = window.innerWidth < 768;
@@ -90,14 +90,9 @@ const AdminLayout = () => {
     fetchData();
   }, []);
 
-  // Handle menu clicks and collapse sidebar on mobile
+  // Handle menu clicks & collapse sidebar on mobile
   const handleMenuClick = ({ key }) => {
-    if (key === "/admin/dashboard") {
-      navigate("/admin");
-    } else {
-      navigate(key);
-    }
-
+    navigate(key === "/admin/dashboard" ? "/admin" : key);
     if (isMobile) setCollapsed(true);
   };
 
@@ -129,6 +124,10 @@ const AdminLayout = () => {
             padding: "16px",
             textAlign: "center",
             fontSize: "16px",
+            fontWeight: "bold",
+            backgroundColor: "#001529",
+            color: "#fff",
+            borderBottom: "1px solid rgba(255,255,255,0.2)",
           }}
         >
           🛠️ Admin Panel
@@ -168,7 +167,7 @@ const AdminLayout = () => {
       <Layout>
         <Header className="admin-header">
           <div className="header-left">
-            {/* Toggle sidebar in mobile mode */}
+            {/* Show sidebar toggle button in mobile mode */}
             {isMobile && (
               <Button
                 type="text"
@@ -184,7 +183,8 @@ const AdminLayout = () => {
                 }}
               />
             )}
-            <UserOutlined /> <span>Welcome, {username}</span>
+            <UserOutlined style={{ marginRight: "8px" }} />
+            <span>Welcome, {username}</span>
           </div>
           <Button
             type="primary"

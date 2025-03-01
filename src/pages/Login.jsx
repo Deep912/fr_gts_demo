@@ -15,13 +15,12 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // ❗ Replace with your network IP
+      // Send request to API
       const response = await axios.post(`${API_URL}/login`, values);
-
       console.log("🔹 API Response:", response.data);
 
       if (response.data.token) {
-        // Store token & user info in localStorage
+        // Store authentication details in localStorage
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("username", response.data.user.username);
         localStorage.setItem("role", response.data.user.role);
@@ -29,12 +28,13 @@ const Login = () => {
         console.log("✅ Token stored successfully.");
         message.success("Login successful!");
 
-        // Redirect user after login
+        // Redirect based on user role
         setTimeout(() => {
-          window.location.href =
-            response.data.user.role === "admin"
-              ? "/admin/dashboard"
-              : "/worker/";
+          if (response.data.user.role === "admin") {
+            window.location.href = "https://fr-gts-demo-1bvh.vercel.app/admin";
+          } else {
+            window.location.href = "/worker/";
+          }
         }, 500);
       } else {
         message.error("Invalid credentials.");
