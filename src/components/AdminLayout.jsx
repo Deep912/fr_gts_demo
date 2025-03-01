@@ -25,13 +25,14 @@ import "../styles/AdminLayout.css";
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
+const SERVER_URL = import.meta.env.VITE_API_URL;
 
 const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const username = localStorage.getItem("username") || "Admin";
 
-  // Sidebar state for mobile
+  // Sidebar state
   const [collapsed, setCollapsed] = useState(window.innerWidth < 768);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [stats, setStats] = useState(null);
@@ -44,7 +45,7 @@ const AdminLayout = () => {
     setCollapsed(!collapsed);
   };
 
-  // Resize listener to adjust layout on different screen sizes
+  // Resize listener for responsiveness
   useEffect(() => {
     const handleResize = () => {
       const mobileView = window.innerWidth < 768;
@@ -60,26 +61,19 @@ const AdminLayout = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const token = localStorage.getItem("token");
+
         const [statsRes, transactionsRes, cylinderStatsRes] = await Promise.all(
           [
-            axios.get("http://localhost:5000/admin/stats", {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
+            axios.get(`${SERVER_URL}/admin/stats`, {
+              headers: { Authorization: `Bearer ${token}` },
             }),
-            axios.get("http://localhost:5000/admin/transactions", {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
+            axios.get(`${SERVER_URL}/admin/transactions`, {
+              headers: { Authorization: `Bearer ${token}` },
             }),
-            axios.get(
-              "http://localhost:5000/admin/reports/cylinder-movement-summary",
-              {
-                headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`,
-                },
-              }
-            ),
+            axios.get(`${SERVER_URL}/admin/reports/cylinder-movement-summary`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
           ]
         );
 
@@ -96,9 +90,14 @@ const AdminLayout = () => {
     fetchData();
   }, []);
 
-  // Handle menu clicks (auto-collapse sidebar on mobile)
+  // Handle menu clicks and collapse sidebar on mobile
   const handleMenuClick = ({ key }) => {
-    navigate(key);
+    if (key === "/admin/dashboard") {
+      navigate("/admin");
+    } else {
+      navigate(key);
+    }
+
     if (isMobile) setCollapsed(true);
   };
 
@@ -119,7 +118,22 @@ const AdminLayout = () => {
         className="admin-sidebar"
         breakpoint="md"
       >
-        <div className="admin-logo">🛠️ Admin Panel</div>
+        <div
+          className="admin-logo"
+          onClick={() => {
+            navigate("/admin");
+            if (isMobile) setCollapsed(true);
+          }}
+          style={{
+            cursor: "pointer",
+            padding: "16px",
+            textAlign: "center",
+            fontSize: "16px",
+          }}
+        >
+          🛠️ Admin Panel
+        </div>
+
         <Menu
           theme="dark"
           mode="inline"
@@ -154,7 +168,7 @@ const AdminLayout = () => {
       <Layout>
         <Header className="admin-header">
           <div className="header-left">
-            {/* Show hamburger button in mobile mode */}
+            {/* Toggle sidebar in mobile mode */}
             {isMobile && (
               <Button
                 type="text"
@@ -183,7 +197,7 @@ const AdminLayout = () => {
         </Header>
 
         <Content className="admin-content">
-          {location.pathname === "/admin/dashboard" && (
+          {location.pathname === "/admin" && (
             <>
               {/* Quick Overview Cards */}
               <Row
@@ -237,11 +251,15 @@ const AdminLayout = () => {
                     renderItem={(item) => (
                       <List.Item>
                         <List.Item.Meta
-                          title={<Text strong>{item.action}</Text>}
+                          title={
+                            <Text strong>
+                              {item.action || "Unknown Action"}
+                            </Text>
+                          }
                           description={`Cylinder: ${
-                            item.serial_number
+                            item.serial_number || "N/A"
                           } | Date: ${new Date(
-                            item.timestamp
+                            item.timestamp || Date.now()
                           ).toLocaleString()}`}
                         />
                       </List.Item>
