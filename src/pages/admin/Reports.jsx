@@ -60,17 +60,20 @@ const Reports = () => {
   const fetchCylinderMovements = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${SERVER_URL}/admin/reports/cylinder-movement`, {
-        params: {
-          search,
-          start: dateRange[0],
-          end: dateRange[1],
-          sortBy,
-          sortOrder,
-        },
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
-      setTransactions(response.data);
+      const response = await axios.get(
+        `${SERVER_URL}/admin/reports/cylinder-movement`,
+        {
+          params: {
+            search,
+            start: dateRange[0],
+            end: dateRange[1],
+            sortBy,
+            sortOrder,
+          },
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
+      setTransactions(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Failed to fetch cylinder movements:", error);
       message.error("Failed to load cylinder movement data.");
@@ -80,9 +83,12 @@ const Reports = () => {
 
   const fetchSummaryData = async () => {
     try {
-      const response = await axios.get(`${SERVER_URL}/admin/reports/cylinder-movement-summary`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
+      const response = await axios.get(
+        `${SERVER_URL}/admin/reports/cylinder-movement-summary`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
       setSummary(response.data);
     } catch (error) {
       console.error("Failed to fetch summary:", error);
@@ -95,17 +101,19 @@ const Reports = () => {
     doc.text("Cylinder Movement Report", 20, 10);
     doc.autoTable({
       head: [["Cylinder ID", "Action", "Performed By", "Timestamp"]],
-      body: transactions.map(({ cylinder_id, action, performed_by, timestamp }) => [
-        cylinder_id,
-        action,
-        performed_by,
-        new Date(timestamp).toLocaleString(),
-      ]),
+      body: transactions.map(
+        ({ cylinder_id, action, performed_by, timestamp }) => [
+          cylinder_id,
+          action,
+          performed_by,
+          new Date(timestamp).toLocaleString(),
+        ]
+      ),
     });
     doc.save("cylinder-movement-report.pdf");
   };
 
-  const actionCounts = transactions.reduce((acc, { action }) => {
+  const actionCounts = (transactions || []).reduce((acc, { action }) => {
     acc[action] = (acc[action] || 0) + 1;
     return acc;
   }, {});
@@ -123,11 +131,15 @@ const Reports = () => {
 
   return (
     <Card title="Cylinder Movement Report">
-      <div style={{ background: "#f8f9fa", padding: "15px", borderRadius: "5px" }}>
+      <div
+        style={{ background: "#f8f9fa", padding: "15px", borderRadius: "5px" }}
+      >
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={6}>
             <RangePicker
-              onChange={(dates) => setDateRange(dates?.map((d) => d.toISOString()) || [])}
+              onChange={(dates) =>
+                setDateRange(dates?.map((d) => d.toISOString()) || [])
+              }
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
@@ -138,14 +150,22 @@ const Reports = () => {
             />
           </Col>
           <Col xs={12} sm={6}>
-            <Select defaultValue="timestamp" onChange={setSortBy} style={{ width: "100%" }}>
+            <Select
+              defaultValue="timestamp"
+              onChange={setSortBy}
+              style={{ width: "100%" }}
+            >
               <Option value="cylinder_id">Cylinder ID</Option>
               <Option value="action">Action</Option>
               <Option value="timestamp">Date</Option>
             </Select>
           </Col>
           <Col xs={12} sm={6}>
-            <Select defaultValue="desc" onChange={setSortOrder} style={{ width: "100%" }}>
+            <Select
+              defaultValue="desc"
+              onChange={setSortOrder}
+              style={{ width: "100%" }}
+            >
               <Option value="asc">Ascending</Option>
               <Option value="desc">Descending</Option>
             </Select>
@@ -159,19 +179,58 @@ const Reports = () => {
       </div>
       {summary && (
         <Row gutter={[16, 16]} style={{ marginTop: "20px" }}>
-          <Col xs={24} sm={8}><Card title="Total Transactions">{summary.total_transactions}</Card></Col>
-          <Col xs={24} sm={8}><Card title="Unique Cylinders Moved">{summary.unique_cylinders}</Card></Col>
-          <Col xs={24} sm={8}><Card title="Last Activity">{new Date(summary.latest_activity).toLocaleString()}</Card></Col>
+          <Col xs={24} sm={8}>
+            <Card title="Total Transactions">{summary.total_transactions}</Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card title="Unique Cylinders Moved">
+              {summary.unique_cylinders}
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card title="Last Activity">
+              {new Date(summary.latest_activity).toLocaleString()}
+            </Card>
+          </Col>
         </Row>
       )}
       <Row gutter={[16, 16]} style={{ marginTop: "20px" }}>
-        <Col span={12}><Bar data={chartData} options={{ responsive: true }} /></Col>
-        <Col span={12}><Pie data={chartData} options={{ responsive: true }} /></Col>
+        <Col span={12}>
+          <Bar data={chartData} options={{ responsive: true }} />
+        </Col>
+        <Col span={12}>
+          <Pie data={chartData} options={{ responsive: true }} />
+        </Col>
       </Row>
-      {loading ? <Spin /> : <Table dataSource={transactions} columns={[{ title: "Cylinder ID", dataIndex: "cylinder_id" }, { title: "Action", dataIndex: "action" }, { title: "Performed By", dataIndex: "performed_by" }, { title: "Timestamp", dataIndex: "timestamp", render: (text) => new Date(text).toLocaleString() }]} rowKey="id" />}
+      {loading ? (
+        <Spin />
+      ) : (
+        <Table
+          dataSource={transactions}
+          columns={[
+            { title: "Cylinder ID", dataIndex: "cylinder_id" },
+            { title: "Action", dataIndex: "action" },
+            { title: "Performed By", dataIndex: "performed_by" },
+            {
+              title: "Timestamp",
+              dataIndex: "timestamp",
+              render: (text) => new Date(text).toLocaleString(),
+            },
+          ]}
+          rowKey="id"
+        />
+      )}
       <div style={{ marginTop: "15px", display: "flex", gap: "10px" }}>
-        <CSVLink data={transactions} filename="cylinder-movement-report.csv" className="ant-btn ant-btn-default"><FileExcelOutlined /> Export CSV</CSVLink>
-        <Button onClick={exportToPDF}><FilePdfOutlined /> Export PDF</Button>
+        <CSVLink
+          data={transactions}
+          filename="cylinder-movement-report.csv"
+          className="ant-btn ant-btn-default"
+        >
+          <FileExcelOutlined /> Export CSV
+        </CSVLink>
+        <Button onClick={exportToPDF}>
+          <FilePdfOutlined /> Export PDF
+        </Button>
       </div>
     </Card>
   );
