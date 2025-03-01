@@ -162,23 +162,27 @@ const Dispatch = () => {
 
   // ✅ Effect to Start Scanner
   useEffect(() => {
+    let scanner;
+
     if (scanning) {
       try {
         setTimeout(() => {
-          const scanner = new Html5QrcodeScanner("reader", {
-            fps: 10,
-            qrbox: { width: 300, height: 300 },
-            disableFlip: false, // Fixes issues with mirrored QR codes
-            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA], // Forces camera mode
-          });
+          scanner = new Html5QrcodeScanner(
+            "reader", // This is the div ID where the camera will be placed
+            {
+              fps: 10,
+              qrbox: { width: 300, height: 300 },
+              disableFlip: false, // Fixes mirrored QR issues
+            }
+          );
 
           scanner.render(
             (decodedText) => {
-              handleScan(decodedText); // Call the function when a QR code is detected
-              scanner.clear(); // Stop scanning after successful scan
+              handleScan(decodedText); // Process scanned QR
+              scanner.clear(); // Stop scanning after success
             },
             (err) => {
-              console.error("QR Scanner Error:", err);
+              console.warn("QR Scanner Error:", err);
             }
           );
         }, 500);
@@ -188,6 +192,13 @@ const Dispatch = () => {
         setScanning(false);
       }
     }
+
+    // ✅ Cleanup function to properly stop scanner
+    return () => {
+      if (scanner) {
+        scanner.clear();
+      }
+    };
   }, [scanning]);
 
   // ✅ Confirm Dispatch
@@ -348,6 +359,8 @@ const Dispatch = () => {
         {/* ✅ QR Scanner Modal */}
         <Modal open={scanning} onCancel={closeScanner} footer={null}>
           <h3>QR Code Scanner</h3>
+
+          {/* ✅ This is where the scanner will attach */}
           <div id="reader" style={{ width: "100%", height: "auto" }}></div>
 
           {currentScan && (
