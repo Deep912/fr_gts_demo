@@ -27,9 +27,10 @@ const Receive = () => {
   const [notEmptyCylinders, setNotEmptyCylinders] = useState([]);
   const [scanning, setScanning] = useState(false);
   const [scannerInstance, setScannerInstance] = useState(null);
-  const [currentScan, setCurrentScan] = useState(null); // Add this line
+  const [currentScan, setCurrentScan] = useState(null);
+  const [scannedIds, setScannedIds] = useState([]); // Temporary storage for scanned IDs
 
-  // ✅ Fetch Companies
+  // Fetch Companies
   useEffect(() => {
     axios
       .get(`${SERVER_URL}/companies`, {
@@ -42,7 +43,7 @@ const Receive = () => {
       .catch(() => message.error("Error fetching companies"));
   }, []);
 
-  // ✅ Fetch Dispatched Cylinders on Company Selection
+  // Fetch Dispatched Cylinders on Company Selection
   useEffect(() => {
     if (!companyId) return;
 
@@ -54,109 +55,54 @@ const Receive = () => {
         },
       })
       .then((response) => {
-        console.log("✅ Dispatched Cylinders:", response.data);
         setDispatchedCylinders(
           Array.isArray(response.data) ? response.data : []
         );
         setSelectedCylinders([]);
-        setNotEmptyCylinders([]); // Default all as EMPTY
+        setNotEmptyCylinders([]);
       })
       .catch(() => message.error("Error fetching dispatched cylinders"));
   }, [companyId]);
 
-  // ✅ Select/Deselect Cylinder (Clickable Card)
-  const toggleCylinderSelection = (serialNumber) => {
-    setSelectedCylinders((prev) =>
-      prev.includes(serialNumber)
-        ? prev.filter((sn) => sn !== serialNumber)
-        : [...prev, serialNumber]
-    );
-  };
-
-  // ✅ Toggle "Not Empty" Status (Defaults to EMPTY)
-  const toggleNotEmpty = (serialNumber, checked) => {
-    setNotEmptyCylinders(
-      (prev) =>
-        checked
-          ? [...prev, serialNumber] // Mark as NOT EMPTY
-          : prev.filter((sn) => sn !== serialNumber) // Keep it EMPTY (default)
-    );
-  };
-
-  // ✅ Handle QR Code Scan
+  // Handle QR Code Scan
   const handleScan = (decodedText) => {
     if (!decodedText) return;
     const serialNumber = decodedText.trim();
 
     // Prevent duplicate scans
-    if (selectedCylinders.includes(serialNumber)) {
+    if (
+      scannedIds.includes(serialNumber) ||
+      selectedCylinders.includes(serialNumber)
+    ) {
       message.warning(`Cylinder ${serialNumber} is already scanned.`);
       return;
     }
 
-    // ✅ Save the scanned cylinder and stop scanning
+    // Save the scanned cylinder and stop scanning
     setCurrentScan(serialNumber);
     if (scannerInstance) scannerInstance.clear();
   };
 
-  const closeScanner = () => {
-    setScanning(false);
-    setCurrentScan(null);
-    if (scannerInstance) {
-      scannerInstance.clear();
-    }
+  // Start Scanner
+  const startScanner = () => {
+    setScanning(true);
+    setScannedIds([]); // Reset scanned IDs when starting a new session
   };
 
-  const acceptCurrentScan = () => {
-    if (!currentScan) {
-      message.warning("No cylinder scanned.");
-      return;
-    }
-
-    setSelectedCylinders((prev) => [...prev, currentScan]); // Save scanned cylinder
-    setCurrentScan(null); // Reset current scan
-
-    // ✅ Restart scanner after 500ms delay
-    setTimeout(() => {
-      if (scannerInstance) {
-        scannerInstance.clear();
-      }
-      const newScanner = new Html5QrcodeScanner("reader", {
+  // Initialize Scanner
+  useEffect(() => {
+    if (scanning) {
+      const scanner = new Html5QrcodeScanner("reader", {
         fps: 10,
         qrbox: { width: 300, height: 300 },
       });
-      newScanner.render(handleScan, handleScanError);
-      setScannerInstance(newScanner);
-    }, 500);
-  };
 
-  const handleScanError = (error) => {
-    console.error("QR Scan Error:", error);
-    message.error("Error scanning QR code.");
-  };
+      scanner.render(
+        (decodedText) => handleScan(decodedText),
+        (err) => console.warn("QR Scanner Error:", err)
+      );
 
-  const startScanner = () => {
-    setScanning(true);
-  };
-
-  useEffect(() => {
-    if (scanning) {
-      setTimeout(() => {
-        const scanner = new Html5QrcodeScanner("reader", {
-          fps: 10,
-          qrbox: { width: 300, height: 300 },
-        });
-
-        scanner.render(
-          (decodedText) => {
-            handleScan(decodedText);
-            scanner.clear(); // Stop scanning after one successful scan
-          },
-          (err) => console.warn("QR Scanner Error:", err)
-        );
-
-        setScannerInstance(scanner);
-      }, 500);
+      setScannerInstance(scanner);
     }
 
     return () => {
@@ -166,7 +112,71 @@ const Receive = () => {
     };
   }, [scanning]);
 
-  // ✅ Confirm Receive Only Selected Cylinders
+  // Handle "Next" Button Click
+  const handleNext = () => {
+    if (!currentScan) {
+      message.warning("No cylinder scanned.");
+      return;
+    }
+
+    // Save the current scan to the list of scanned IDs
+    setScannedIds((prev) => [...prev, currentScan]);
+    setCurrentScan(null); // Reset current scan
+
+    // Restart the scanner
+    if (scannerInstance) {
+      scannerInstance.clear();
+      const newScanner = new Html5QrcodeScanner("reader", {
+        fps: 10,
+        qrbox: { width: 300, height: 300 },
+      });
+      newScanner.render(handleScan, (err) =>
+        console.warn("QR Scanner Error:", err)
+      );
+      setScannerInstance(newScanner);
+    }
+  };
+
+  // Handle "Done" Button Click
+  const handleDone = () => {
+    if (scannedIds.length === 0) {
+      message.warning("No cylinders scanned.");
+      return;
+    }
+
+    // Add all scanned IDs to the selectedCylinders list
+    setSelectedCylinders((prev) => [...prev, ...scannedIds]);
+    setScannedIds([]); // Clear temporary scanned IDs
+    setScanning(false); // Close the scanner modal
+  };
+
+  // Handle "Cancel" Button Click
+  const handleCancel = () => {
+    setScanning(false);
+    setScannedIds([]); // Clear temporary scanned IDs
+    setCurrentScan(null);
+  };
+
+  // Toggle Cylinder Selection
+  const toggleCylinderSelection = (serialNumber) => {
+    setSelectedCylinders((prev) =>
+      prev.includes(serialNumber)
+        ? prev.filter((sn) => sn !== serialNumber)
+        : [...prev, serialNumber]
+    );
+  };
+
+  // Toggle "Not Empty" Status
+  const toggleNotEmpty = (serialNumber, checked) => {
+    setNotEmptyCylinders(
+      (prev) =>
+        checked
+          ? [...prev, serialNumber] // Mark as NOT EMPTY
+          : prev.filter((sn) => sn !== serialNumber) // Keep it EMPTY (default)
+    );
+  };
+
+  // Confirm Receive
   const handleConfirmReceive = () => {
     if (selectedCylinders.length === 0) {
       message.warning("Please select at least one cylinder");
@@ -211,7 +221,7 @@ const Receive = () => {
         Receive Cylinders
       </Title>
 
-      {/* ✅ Select Company */}
+      {/* Select Company */}
       <label className="receive-label">Select Company:</label>
       <Select
         className="receive-select"
@@ -229,7 +239,7 @@ const Receive = () => {
         ))}
       </Select>
 
-      {/* ✅ Scan QR Code Button */}
+      {/* Scan QR Code Button */}
       <Button
         type="primary"
         icon={<ScanOutlined />}
@@ -244,17 +254,17 @@ const Receive = () => {
         Scan QR Code
       </Button>
 
-      {/* ✅ QR Code Scanner Modal */}
+      {/* QR Code Scanner Modal */}
       <Modal
         title="Scan QR Codes"
         open={scanning}
-        onCancel={() => setScanning(false)}
+        onCancel={handleCancel}
         footer={null}
         width={400}
       >
         <div id="reader"></div>
 
-        {/* ✅ Show scanned cylinder ID */}
+        {/* Show scanned cylinder ID */}
         {currentScan && (
           <div style={{ marginTop: "15px", textAlign: "center" }}>
             <Text strong>Scanned Cylinder ID:</Text>
@@ -262,20 +272,20 @@ const Receive = () => {
           </div>
         )}
 
-        {/* ✅ Control Buttons */}
+        {/* Control Buttons */}
         <div style={{ marginTop: "15px", textAlign: "center" }}>
           {/* Show "Next" if there's a scanned cylinder */}
           {currentScan && (
-            <Button type="primary" onClick={acceptCurrentScan}>
+            <Button type="primary" onClick={handleNext}>
               Next
             </Button>
           )}
 
           {/* Show "Done" when user decides to stop */}
-          {selectedCylinders.length > 0 && (
+          {scannedIds.length > 0 && (
             <Button
               type="primary"
-              onClick={() => setScanning(false)}
+              onClick={handleDone}
               style={{ marginLeft: "10px" }}
             >
               Done
@@ -285,7 +295,7 @@ const Receive = () => {
           {/* Always show "Cancel" to exit without saving */}
           <Button
             type="default"
-            onClick={() => setScanning(false)}
+            onClick={handleCancel}
             style={{ marginLeft: "10px" }}
           >
             Cancel
@@ -295,7 +305,7 @@ const Receive = () => {
 
       <Divider />
 
-      {/* ✅ Cylinder List with Clickable Cards */}
+      {/* Cylinder List with Clickable Cards */}
       <Row gutter={[16, 16]}>
         {dispatchedCylinders.map((cylinder) => (
           <Col key={cylinder.serial_number} xs={24} sm={12} md={8}>
@@ -323,7 +333,7 @@ const Receive = () => {
             >
               {cylinder.serial_number}
             </Card>
-            {/* ✅ "Not Empty" Toggle (Separate Below) */}
+            {/* "Not Empty" Toggle */}
             <div style={{ textAlign: "center", marginTop: "8px" }}>
               <Switch
                 checked={notEmptyCylinders.includes(cylinder.serial_number)}
@@ -343,7 +353,7 @@ const Receive = () => {
 
       <Divider />
 
-      {/* ✅ Confirm Button */}
+      {/* Confirm Button */}
       <Button
         type="primary"
         className="receive-button"
