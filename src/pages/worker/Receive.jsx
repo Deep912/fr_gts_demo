@@ -27,6 +27,7 @@ const Receive = () => {
   const [notEmptyCylinders, setNotEmptyCylinders] = useState([]);
   const [scanning, setScanning] = useState(false);
   const [scannerInstance, setScannerInstance] = useState(null);
+  const [currentScan, setCurrentScan] = useState(null); // Add this line
 
   // ✅ Fetch Companies
   useEffect(() => {
