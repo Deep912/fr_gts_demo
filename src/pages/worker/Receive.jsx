@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import {
   Select,
+  Input,
   Button,
   Card,
   Row,
@@ -12,6 +13,7 @@ import {
   Divider,
   Typography,
   Badge,
+  Grid, // NEW
 } from "antd";
 import { DownloadOutlined, ScanOutlined } from "@ant-design/icons";
 import { Html5QrcodeScanner } from "html5-qrcode";
@@ -30,6 +32,13 @@ const Receive = () => {
   const [currentScan, setCurrentScan] = useState(null);
   const [scannedIds, setScannedIds] = useState([]); // Temporary storage for scanned IDs
   const scannerInstanceRef = useRef(null); // Use ref for scanner instance
+
+  // NEW: For desktop vs. mobile detection
+  const screens = Grid.useBreakpoint();
+  const isMobileOrTablet = !screens.md; // If md is false => treat as mobile/tablet
+
+  // NEW: Desktop search term
+  const [searchTerm, setSearchTerm] = useState("");
 
   // ✅ Fetch Companies
   useEffect(() => {
@@ -262,6 +271,18 @@ const Receive = () => {
       .catch(() => message.error("Error receiving cylinders"));
   };
 
+  // NEW: We'll store a desktop searchTerm & filter if not mobile
+  // const [searchTerm, setSearchTerm] = useState("");
+  // const screens = Grid.useBreakpoint();
+  // const isMobileOrTablet = !screens.md;
+
+  // Filter dispatchedCylinders on desktop only
+  const displayedCylinders = isMobileOrTablet
+    ? dispatchedCylinders
+    : dispatchedCylinders.filter((cyl) =>
+        cyl.serial_number.includes(searchTerm)
+      );
+
   return (
     <Card className="receive-card">
       <Title level={3} className="receive-title">
@@ -286,22 +307,35 @@ const Receive = () => {
         ))}
       </Select>
 
-      {/* ✅ Scan QR Code Button with Badge showing scanned count */}
-      <Badge count={scannedIds.length} offset={[10, 0]}>
-        <Button
-          type="primary"
-          icon={<ScanOutlined />}
-          onClick={startScanner}
+      {/* If mobile => show SCAN button, else => show search input */}
+      {isMobileOrTablet ? (
+        <Badge count={scannedIds.length} offset={[10, 0]}>
+          <Button
+            type="primary"
+            icon={<ScanOutlined />}
+            onClick={startScanner}
+            style={{
+              width: "100%",
+              background: "#1890ff",
+              borderColor: "#1890ff",
+              marginBottom: "10px",
+            }}
+          >
+            Scan QR Code
+          </Button>
+        </Badge>
+      ) : (
+        <Input
+          placeholder="Search Cylinder ID"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          allowClear
           style={{
             width: "100%",
-            background: "#1890ff",
-            borderColor: "#1890ff",
             marginBottom: "10px",
           }}
-        >
-          Scan QR Code
-        </Button>
-      </Badge>
+        />
+      )}
 
       {/* ✅ QR Code Scanner Modal */}
       <Modal
@@ -354,9 +388,9 @@ const Receive = () => {
 
       <Divider />
 
-      {/* ✅ Cylinder List with Clickable Cards */}
+      {/* ✅ Cylinder List with Clickable Cards (filtered on desktop) */}
       <Row gutter={[16, 16]}>
-        {dispatchedCylinders.map((cylinder) => (
+        {displayedCylinders.map((cylinder) => (
           <Col key={cylinder.serial_number} xs={24} sm={12} md={8}>
             <Card
               className={`cylinder-card ${
