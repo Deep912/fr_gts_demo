@@ -85,16 +85,19 @@ const Receive = () => {
   // ✅ Handle QR Code Scan
   const handleScan = (decodedText) => {
     if (!decodedText) return;
-
     const serialNumber = decodedText.trim();
-    console.log("🔹 Scanned QR Code:", serialNumber);
 
-    if (dispatchedCylinders.some((c) => c.serial_number === serialNumber)) {
-      toggleCylinderSelection(serialNumber);
-      message.success(`Scanned: ${serialNumber}`);
-    } else {
-      message.warning("Scanned cylinder is not in the dispatched list.");
+    // Prevent duplicate scans
+    if (selectedCylinders.includes(serialNumber)) {
+      message.warning(`Cylinder ${serialNumber} is already scanned.`);
+      return;
     }
+
+    // Save the scanned cylinder and pause scanning
+    setCurrentScan(serialNumber);
+
+    // Stop scanning until user clicks "Next"
+    if (scannerInstance) scannerInstance.clear();
   };
 
   const handleScanError = (error) => {
@@ -114,7 +117,14 @@ const Receive = () => {
           qrbox: { width: 300, height: 300 },
         });
 
-        scanner.render(handleScan, handleScanError);
+        scanner.render(
+          (decodedText) => {
+            handleScan(decodedText);
+            scanner.clear(); // Stop scanning after one successful scan
+          },
+          (err) => console.warn("QR Scanner Error:", err)
+        );
+
         setScannerInstance(scanner);
       }, 500);
     }
@@ -205,7 +215,6 @@ const Receive = () => {
       </Button>
 
       {/* ✅ QR Code Scanner Modal */}
-      {/* ✅ QR Code Scanner Modal */}
       <Modal
         title="Scan QR Codes"
         open={scanning}
@@ -215,23 +224,42 @@ const Receive = () => {
       >
         <div id="reader"></div>
 
-        {/* ✅ Display Scanned Cylinders */}
-        {selectedCylinders.length > 0 && (
-          <div style={{ marginTop: "15px" }}>
-            <Text strong>Scanned Cylinders:</Text>
-            <ul>
-              {selectedCylinders.map((sn) => (
-                <li key={sn}>{sn}</li>
-              ))}
-            </ul>
+        {/* ✅ Show scanned cylinder ID */}
+        {currentScan && (
+          <div style={{ marginTop: "15px", textAlign: "center" }}>
+            <Text strong>Scanned Cylinder ID:</Text>
+            <p>{currentScan}</p>
           </div>
         )}
 
         {/* ✅ Control Buttons */}
         <div style={{ marginTop: "15px", textAlign: "center" }}>
-          <Button type="primary" onClick={() => setScanning(false)}>
-            Done (Save)
-          </Button>
+          {/* Show "Next" if there's a scanned cylinder */}
+          {currentScan && (
+            <Button
+              type="primary"
+              onClick={() => {
+                setSelectedCylinders((prev) => [...prev, currentScan]);
+                setCurrentScan(null);
+                message.success("Scan another or click Done.");
+              }}
+            >
+              Next
+            </Button>
+          )}
+
+          {/* Show "Done" when user decides to stop */}
+          {selectedCylinders.length > 0 && (
+            <Button
+              type="primary"
+              onClick={() => setScanning(false)}
+              style={{ marginLeft: "10px" }}
+            >
+              Done
+            </Button>
+          )}
+
+          {/* Always show "Cancel" to exit without saving */}
           <Button
             type="default"
             onClick={() => setScanning(false)}
