@@ -91,9 +91,7 @@ const Receive = () => {
     // ✅ Save the scanned cylinder and pause scanning
     setCurrentScan(serialNumber);
     if (scannerInstanceRef.current) {
-      scannerInstanceRef.current.clear().catch((error) => {
-        console.error("Failed to clear scanner:", error);
-      });
+      scannerInstanceRef.current.clear();
     }
   };
 
@@ -134,9 +132,7 @@ const Receive = () => {
     return () => {
       // Cleanup on unmount or when scanning toggles off
       if (scannerInstanceRef.current) {
-        scannerInstanceRef.current.clear().catch((error) => {
-          console.error("Failed to clear scanner:", error);
-        });
+        scannerInstanceRef.current.clear();
       }
     };
   }, [scanning]);
@@ -164,9 +160,7 @@ const Receive = () => {
 
     // ✅ Restart scanning
     if (scannerInstanceRef.current) {
-      scannerInstanceRef.current.clear().catch((error) => {
-        console.error("Failed to clear scanner:", error);
-      });
+      scannerInstanceRef.current.clear();
       scannerInstanceRef.current.render(handleScan, (err) =>
         console.warn("QR Scanner Error:", err)
       );
@@ -189,9 +183,7 @@ const Receive = () => {
     setScanning(false);
 
     if (scannerInstanceRef.current) {
-      scannerInstanceRef.current.clear().catch((error) => {
-        console.error("Failed to clear scanner:", error);
-      });
+      scannerInstanceRef.current.clear();
     }
   };
 
@@ -207,9 +199,7 @@ const Receive = () => {
           setCurrentScan(null);
 
           if (scannerInstanceRef.current) {
-            scannerInstanceRef.current.clear().catch((error) => {
-              console.error("Failed to clear scanner:", error);
-            });
+            scannerInstanceRef.current.clear();
           }
         },
       });
@@ -219,9 +209,7 @@ const Receive = () => {
       setCurrentScan(null);
 
       if (scannerInstanceRef.current) {
-        scannerInstanceRef.current.clear().catch((error) => {
-          console.error("Failed to clear scanner:", error);
-        });
+        scannerInstanceRef.current.clear();
       }
     }
   };
