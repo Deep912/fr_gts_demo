@@ -11,6 +11,7 @@ import {
   message,
   Divider,
   Typography,
+  Badge,
 } from "antd";
 import { DownloadOutlined, ScanOutlined } from "@ant-design/icons";
 import { Html5QrcodeScanner } from "html5-qrcode";
@@ -30,7 +31,7 @@ const Receive = () => {
   const [scannedIds, setScannedIds] = useState([]); // Temporary storage for scanned IDs
   const scannerInstanceRef = useRef(null); // Use ref for scanner instance
 
-  // Fetch Companies
+  // ✅ Fetch Companies
   useEffect(() => {
     axios
       .get(`${SERVER_URL}/companies`, {
@@ -43,7 +44,7 @@ const Receive = () => {
       .catch(() => message.error("Error fetching companies"));
   }, []);
 
-  // Fetch Dispatched Cylinders on Company Selection
+  // ✅ Fetch Dispatched Cylinders on Company Selection
   useEffect(() => {
     if (!companyId) return;
 
@@ -64,12 +65,12 @@ const Receive = () => {
       .catch(() => message.error("Error fetching dispatched cylinders"));
   }, [companyId]);
 
-  // Handle QR Code Scan
+  // ✅ Handle QR Code Scan
   const handleScan = (decodedText) => {
     if (!decodedText) return;
     const serialNumber = decodedText.trim();
 
-    // Prevent duplicate scans
+    // ✅ Prevent duplicate scans (in scannedIds or selectedCylinders)
     if (
       scannedIds.includes(serialNumber) ||
       selectedCylinders.includes(serialNumber)
@@ -78,17 +79,16 @@ const Receive = () => {
       return;
     }
 
-    // Validate if the scanned ID exists in dispatched cylinders
+    // ✅ Validate if scanned ID exists in dispatched cylinders
     const isValidCylinder = dispatchedCylinders.some(
-      (cylinder) => cylinder.serial_number === serialNumber
+      (cyl) => cyl.serial_number === serialNumber
     );
-
     if (!isValidCylinder) {
       message.error(`Cylinder ${serialNumber} not found in dispatched list.`);
       return;
     }
 
-    // Save the scanned cylinder and stop scanning
+    // ✅ Save the scanned cylinder and pause scanning
     setCurrentScan(serialNumber);
     if (scannerInstanceRef.current) {
       scannerInstanceRef.current.clear().catch((error) => {
@@ -97,13 +97,17 @@ const Receive = () => {
     }
   };
 
-  // Start Scanner
+  // ✅ Start Scanner
   const startScanner = () => {
+    if (!companyId) {
+      message.warning("Please select a company first.");
+      return;
+    }
     setScanning(true);
-    setScannedIds([]); // Reset scanned IDs when starting a new session
+    setScannedIds([]); // Reset scanned IDs
   };
 
-  // Initialize Scanner
+  // ✅ Initialize/Render Scanner
   useEffect(() => {
     if (scanning) {
       const scanner = new Html5QrcodeScanner("reader", {
@@ -128,6 +132,7 @@ const Receive = () => {
     }
 
     return () => {
+      // Cleanup on unmount or when scanning toggles off
       if (scannerInstanceRef.current) {
         scannerInstanceRef.current.clear().catch((error) => {
           console.error("Failed to clear scanner:", error);
@@ -136,51 +141,63 @@ const Receive = () => {
     };
   }, [scanning]);
 
-  // Handle "Next" Button Click
+  // ✅ "Next" Button
   const handleNext = () => {
     if (!currentScan) {
       message.warning("No cylinder scanned.");
       return;
     }
 
-    // Save the current scan to the list of scanned IDs
-    setScannedIds((prev) => [...prev, currentScan]);
-    setCurrentScan(null); // Reset current scan
+    // ✅ Prevent duplicates again (just in case)
+    if (
+      selectedCylinders.includes(currentScan) ||
+      scannedIds.includes(currentScan)
+    ) {
+      message.warning(`Cylinder ${currentScan} is already scanned.`);
+      setCurrentScan(null);
+      return;
+    }
 
-    // Clear previous scanner
+    // ✅ Save the scan
+    setScannedIds((prev) => [...prev, currentScan]);
+    setCurrentScan(null);
+
+    // ✅ Restart scanning
     if (scannerInstanceRef.current) {
       scannerInstanceRef.current.clear().catch((error) => {
         console.error("Failed to clear scanner:", error);
       });
+      scannerInstanceRef.current.render(handleScan, (err) =>
+        console.warn("QR Scanner Error:", err)
+      );
     }
-
-    // Restart the scanner
-    const newScanner = new Html5QrcodeScanner("reader", {
-      fps: 10,
-      qrbox: { width: 300, height: 300 },
-    });
-    newScanner.render(handleScan, (err) =>
-      console.warn("QR Scanner Error:", err)
-    );
-    scannerInstanceRef.current = newScanner; // Update ref
   };
 
-  // Handle "Done" Button Click
+  // ✅ "Done" Button
   const handleDone = () => {
     if (scannedIds.length === 0) {
       message.warning("No cylinders scanned.");
       return;
     }
-
-    // Add all scanned IDs to the selectedCylinders list
+    // ✅ Merge scanned IDs into selectedCylinders
     setSelectedCylinders((prev) => [...prev, ...scannedIds]);
-    setScannedIds([]); // Clear temporary scanned IDs
-    setScanning(false); // Close the scanner modal
+    message.success(`${scannedIds.length} cylinders scanned successfully!`);
+
+    // ✅ Reset scanning state
+    setScannedIds([]);
+    setCurrentScan(null);
+    setScanning(false);
+
+    if (scannerInstanceRef.current) {
+      scannerInstanceRef.current.clear().catch((error) => {
+        console.error("Failed to clear scanner:", error);
+      });
+    }
   };
 
-  // Handle "Cancel" Button Click
+  // ✅ "Cancel" Button
   const handleCancel = () => {
-    if (scannedIds.length > 0) {
+    if (scannedIds.length > 0 || currentScan) {
       Modal.confirm({
         title: "Are you sure you want to cancel?",
         content: "All scanned cylinders will be lost.",
@@ -188,16 +205,28 @@ const Receive = () => {
           setScanning(false);
           setScannedIds([]);
           setCurrentScan(null);
+
+          if (scannerInstanceRef.current) {
+            scannerInstanceRef.current.clear().catch((error) => {
+              console.error("Failed to clear scanner:", error);
+            });
+          }
         },
       });
     } else {
       setScanning(false);
       setScannedIds([]);
       setCurrentScan(null);
+
+      if (scannerInstanceRef.current) {
+        scannerInstanceRef.current.clear().catch((error) => {
+          console.error("Failed to clear scanner:", error);
+        });
+      }
     }
   };
 
-  // Toggle Cylinder Selection
+  // ✅ Toggle Cylinder Selection
   const toggleCylinderSelection = (serialNumber) => {
     setSelectedCylinders((prev) =>
       prev.includes(serialNumber)
@@ -206,17 +235,17 @@ const Receive = () => {
     );
   };
 
-  // Toggle "Not Empty" Status
+  // ✅ Toggle "Not Empty" Status
   const toggleNotEmpty = (serialNumber, checked) => {
     setNotEmptyCylinders(
       (prev) =>
         checked
           ? [...prev, serialNumber] // Mark as NOT EMPTY
-          : prev.filter((sn) => sn !== serialNumber) // Keep it EMPTY (default)
+          : prev.filter((sn) => sn !== serialNumber) // Remain EMPTY
     );
   };
 
-  // Confirm Receive
+  // ✅ Confirm Receive
   const handleConfirmReceive = () => {
     if (selectedCylinders.length === 0) {
       message.warning("Please select at least one cylinder");
@@ -247,9 +276,7 @@ const Receive = () => {
         setSelectedCylinders([]);
         setNotEmptyCylinders([]);
         setDispatchedCylinders((prev) =>
-          prev.filter(
-            (cylinder) => !selectedCylinders.includes(cylinder.serial_number)
-          )
+          prev.filter((cyl) => !selectedCylinders.includes(cyl.serial_number))
         );
       })
       .catch(() => message.error("Error receiving cylinders"));
@@ -261,7 +288,7 @@ const Receive = () => {
         Receive Cylinders
       </Title>
 
-      {/* Select Company */}
+      {/* ✅ Select Company */}
       <label className="receive-label">Select Company:</label>
       <Select
         className="receive-select"
@@ -279,22 +306,24 @@ const Receive = () => {
         ))}
       </Select>
 
-      {/* Scan QR Code Button */}
-      <Button
-        type="primary"
-        icon={<ScanOutlined />}
-        onClick={startScanner}
-        style={{
-          width: "100%",
-          background: "#1890ff",
-          borderColor: "#1890ff",
-          marginBottom: "10px",
-        }}
-      >
-        Scan QR Code
-      </Button>
+      {/* ✅ Scan QR Code Button with Badge showing scanned count */}
+      <Badge count={scannedIds.length} offset={[10, 0]}>
+        <Button
+          type="primary"
+          icon={<ScanOutlined />}
+          onClick={startScanner}
+          style={{
+            width: "100%",
+            background: "#1890ff",
+            borderColor: "#1890ff",
+            marginBottom: "10px",
+          }}
+        >
+          Scan QR Code
+        </Button>
+      </Badge>
 
-      {/* QR Code Scanner Modal */}
+      {/* ✅ QR Code Scanner Modal */}
       <Modal
         title="Scan QR Codes"
         open={scanning}
@@ -304,7 +333,7 @@ const Receive = () => {
       >
         <div id="reader"></div>
 
-        {/* Show scanned cylinder ID */}
+        {/* ✅ Show scanned cylinder ID */}
         {currentScan && (
           <div style={{ marginTop: "15px", textAlign: "center" }}>
             <Text strong>Scanned Cylinder ID:</Text>
@@ -312,7 +341,7 @@ const Receive = () => {
           </div>
         )}
 
-        {/* Control Buttons */}
+        {/* ✅ Control Buttons */}
         <div style={{ marginTop: "15px", textAlign: "center" }}>
           {/* Show "Next" if there's a scanned cylinder */}
           {currentScan && (
@@ -345,7 +374,7 @@ const Receive = () => {
 
       <Divider />
 
-      {/* Cylinder List with Clickable Cards */}
+      {/* ✅ Cylinder List with Clickable Cards */}
       <Row gutter={[16, 16]}>
         {dispatchedCylinders.map((cylinder) => (
           <Col key={cylinder.serial_number} xs={24} sm={12} md={8}>
@@ -373,7 +402,8 @@ const Receive = () => {
             >
               {cylinder.serial_number}
             </Card>
-            {/* "Not Empty" Toggle */}
+
+            {/* ✅ "Not Empty" Toggle */}
             <div style={{ textAlign: "center", marginTop: "8px" }}>
               <Switch
                 checked={notEmptyCylinders.includes(cylinder.serial_number)}
@@ -393,7 +423,7 @@ const Receive = () => {
 
       <Divider />
 
-      {/* Confirm Button */}
+      {/* ✅ Confirm Button */}
       <Button
         type="primary"
         className="receive-button"
