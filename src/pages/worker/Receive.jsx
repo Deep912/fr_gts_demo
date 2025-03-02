@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import {
   Select,
@@ -11,6 +11,7 @@ import {
   message,
   Divider,
   Typography,
+  Spin,
 } from "antd";
 import { DownloadOutlined, ScanOutlined } from "@ant-design/icons";
 import { Html5QrcodeScanner } from "html5-qrcode";
@@ -23,137 +24,142 @@ const Receive = () => {
   const [companies, setCompanies] = useState([]);
   const [companyId, setCompanyId] = useState("");
   const [dispatchedCylinders, setDispatchedCylinders] = useState([]);
-  const [selectedCylinders, setSelectedCylinders] = useState([]);
-  const [notEmptyCylinders, setNotEmptyCylinders] = useState([]);
+  const [selectedCylinders, setSelectedCylinders] = useState(new Set());
+  const [notEmptyCylinders, setNotEmptyCylinders] = useState(new Set());
   const [scanning, setScanning] = useState(false);
   const [scannerInstance, setScannerInstance] = useState(null);
-  const [currentScan, setCurrentScan] = useState(null); // Add this line
+  const [currentScan, setCurrentScan] = useState(null);
+  const [loading, setLoading] = useState({
+    companies: false,
+    cylinders: false,
+    submitting: false,
+  });
 
-  // ✅ Fetch Companies
-  useEffect(() => {
-    axios
-      .get(`${SERVER_URL}/companies`, {
+  // Fetch Companies with loading state and cancellation
+  const fetchCompanies = useCallback(async () => {
+    setLoading((prev) => ({ ...prev, companies: true }));
+    try {
+      const response = await axios.get(`${SERVER_URL}/companies`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "ngrok-skip-browser-warning": "true",
         },
-      })
-      .then((response) => setCompanies(response.data))
-      .catch(() => message.error("Error fetching companies"));
+        cancelToken: axios.CancelToken.source().token,
+      });
+      setCompanies(response.data);
+    } catch (error) {
+      if (!axios.isCancel(error)) {
+        message.error(
+          error.response?.data?.message || "Error fetching companies"
+        );
+      }
+    } finally {
+      setLoading((prev) => ({ ...prev, companies: false }));
+    }
   }, []);
 
-  // ✅ Fetch Dispatched Cylinders on Company Selection
-  useEffect(() => {
+  // Fetch Dispatched Cylinders with loading state and cancellation
+  const fetchDispatchedCylinders = useCallback(async () => {
     if (!companyId) return;
 
-    axios
-      .get(`${SERVER_URL}/dispatched-cylinders?companyId=${companyId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "ngrok-skip-browser-warning": "true",
-        },
-      })
-      .then((response) => {
-        console.log("✅ Dispatched Cylinders:", response.data);
-        setDispatchedCylinders(
-          Array.isArray(response.data) ? response.data : []
+    setLoading((prev) => ({ ...prev, cylinders: true }));
+    try {
+      const response = await axios.get(
+        `${SERVER_URL}/dispatched-cylinders?companyId=${companyId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "ngrok-skip-browser-warning": "true",
+          },
+          cancelToken: axios.CancelToken.source().token,
+        }
+      );
+      setDispatchedCylinders(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      if (!axios.isCancel(error)) {
+        message.error(
+          error.response?.data?.message || "Error fetching cylinders"
         );
-        setSelectedCylinders([]);
-        setNotEmptyCylinders([]); // Default all as EMPTY
-      })
-      .catch(() => message.error("Error fetching dispatched cylinders"));
+      }
+    } finally {
+      setLoading((prev) => ({ ...prev, cylinders: false }));
+    }
   }, [companyId]);
 
-  // ✅ Select/Deselect Cylinder (Clickable Card)
-  const toggleCylinderSelection = (serialNumber) => {
-    setSelectedCylinders((prev) =>
-      prev.includes(serialNumber)
-        ? prev.filter((sn) => sn !== serialNumber)
-        : [...prev, serialNumber]
-    );
-  };
+  // Scanner management with proper cleanup
+  const initializeScanner = useCallback(() => {
+    const scanner = new Html5QrcodeScanner("reader", {
+      fps: 10,
+      qrbox: { width: 300, height: 300 },
+    });
 
-  // ✅ Toggle "Not Empty" Status (Defaults to EMPTY)
-  const toggleNotEmpty = (serialNumber, checked) => {
-    setNotEmptyCylinders(
-      (prev) =>
-        checked
-          ? [...prev, serialNumber] // Mark as NOT EMPTY
-          : prev.filter((sn) => sn !== serialNumber) // Keep it EMPTY (default)
-    );
-  };
+    const scanSuccess = (decodedText) => {
+      const serialNumber = decodedText.trim();
+      if (!selectedCylinders.has(serialNumber)) {
+        setCurrentScan(serialNumber);
+        scanner.clear();
+      }
+    };
 
-  // ✅ Handle QR Code Scan
-  const handleScan = (decodedText) => {
-    if (!decodedText) return;
-    const serialNumber = decodedText.trim();
+    const scanError = (error) => {
+      console.error("QR Scan Error:", error);
+      message.error("Error scanning QR code. Please try again.");
+    };
 
-    // Prevent duplicate scans
-    if (selectedCylinders.includes(serialNumber)) {
-      message.warning(`Cylinder ${serialNumber} is already scanned.`);
-      return;
-    }
+    scanner.render(scanSuccess, scanError);
+    setScannerInstance(scanner);
+  }, [selectedCylinders]);
 
-    // Save the scanned cylinder and pause scanning
-    setCurrentScan(serialNumber);
-
-    // Stop scanning until user clicks "Next"
-    if (scannerInstance) scannerInstance.clear();
-  };
-
-  const handleScanError = (error) => {
-    console.error("QR Scan Error:", error);
-    message.error("Error scanning QR code.");
-  };
-
-  const startScanner = () => {
-    setScanning(true);
-  };
-
+  // Scanner lifecycle management
   useEffect(() => {
     if (scanning) {
-      setTimeout(() => {
-        const scanner = new Html5QrcodeScanner("reader", {
-          fps: 10,
-          qrbox: { width: 300, height: 300 },
-        });
-
-        scanner.render(
-          (decodedText) => {
-            handleScan(decodedText);
-            scanner.clear(); // Stop scanning after one successful scan
-          },
-          (err) => console.warn("QR Scanner Error:", err)
-        );
-
-        setScannerInstance(scanner);
-      }, 500);
+      initializeScanner();
     }
 
     return () => {
       if (scannerInstance) {
-        scannerInstance.clear();
+        scannerInstance.clear().catch((error) => {
+          console.error("Failed to clear scanner:", error);
+        });
       }
     };
-  }, [scanning]);
+  }, [scanning, initializeScanner]);
 
-  // ✅ Confirm Receive Only Selected Cylinders
-  const handleConfirmReceive = () => {
-    if (selectedCylinders.length === 0) {
+  // Handle scan confirmation
+  const handleAcceptScan = useCallback(() => {
+    if (!currentScan) return;
+
+    const isValidCylinder = dispatchedCylinders.some(
+      (cyl) => cyl.serial_number === currentScan
+    );
+
+    if (!isValidCylinder) {
+      message.error("Scanned cylinder not found in dispatched list");
+      setCurrentScan(null);
+      return;
+    }
+
+    setSelectedCylinders((prev) => new Set([...prev, currentScan]));
+    setCurrentScan(null);
+    initializeScanner();
+  }, [currentScan, dispatchedCylinders, initializeScanner]);
+
+  // Confirm receive handler with loading state
+  const handleConfirmReceive = async () => {
+    if (selectedCylinders.size === 0) {
       message.warning("Please select at least one cylinder");
       return;
     }
 
-    axios
-      .post(
+    setLoading((prev) => ({ ...prev, submitting: true }));
+    try {
+      await axios.post(
         `${SERVER_URL}/receive-cylinder`,
         {
-          emptySerialNumbers: selectedCylinders.filter(
-            (sn) => !notEmptyCylinders.includes(sn)
+          emptySerialNumbers: [...selectedCylinders].filter(
+            (sn) => !notEmptyCylinders.has(sn)
           ),
-          filledSerialNumbers: selectedCylinders.filter((sn) =>
-            notEmptyCylinders.includes(sn)
-          ),
+          filledSerialNumbers: [...notEmptyCylinders],
           companyId,
         },
         {
@@ -162,18 +168,21 @@ const Receive = () => {
             "ngrok-skip-browser-warning": "true",
           },
         }
-      )
-      .then(() => {
-        message.success("Selected cylinders received successfully!");
-        setSelectedCylinders([]);
-        setNotEmptyCylinders([]);
-        setDispatchedCylinders((prev) =>
-          prev.filter(
-            (cylinder) => !selectedCylinders.includes(cylinder.serial_number)
-          )
-        );
-      })
-      .catch(() => message.error("Error receiving cylinders"));
+      );
+
+      message.success("Cylinders received successfully!");
+      setDispatchedCylinders((prev) =>
+        prev.filter((cyl) => !selectedCylinders.has(cyl.serial_number))
+      );
+      setSelectedCylinders(new Set());
+      setNotEmptyCylinders(new Set());
+    } catch (error) {
+      message.error(
+        error.response?.data?.message || "Error receiving cylinders"
+      );
+    } finally {
+      setLoading((prev) => ({ ...prev, submitting: false }));
+    }
   };
 
   return (
@@ -182,155 +191,133 @@ const Receive = () => {
         Receive Cylinders
       </Title>
 
-      {/* ✅ Select Company */}
-      <label className="receive-label">Select Company:</label>
-      <Select
-        className="receive-select"
-        placeholder="Search & Select Company..."
-        showSearch
-        optionFilterProp="children"
-        onChange={(value) => setCompanyId(value)}
-        value={companyId}
-        style={{ width: "100%", marginBottom: "10px" }}
-      >
-        {companies.map((company) => (
-          <Select.Option key={company.id} value={company.id}>
-            {company.name}
-          </Select.Option>
-        ))}
-      </Select>
+      <Spin spinning={loading.companies} tip="Loading companies...">
+        <Select
+          className="receive-select"
+          placeholder="Select Company..."
+          showSearch
+          optionFilterProp="children"
+          onChange={setCompanyId}
+          value={companyId}
+          loading={loading.companies}
+          disabled={loading.companies}
+          filterOption={(input, option) =>
+            option.children.toLowerCase().includes(input.toLowerCase())
+          }
+        >
+          {companies.map((company) => (
+            <Select.Option key={company.id} value={company.id}>
+              {company.name}
+            </Select.Option>
+          ))}
+        </Select>
+      </Spin>
 
-      {/* ✅ Scan QR Code Button */}
       <Button
         type="primary"
         icon={<ScanOutlined />}
-        onClick={startScanner}
-        style={{
-          width: "100%",
-          background: "#1890ff",
-          borderColor: "#1890ff",
-          marginBottom: "10px",
-        }}
+        onClick={() => setScanning(true)}
+        loading={loading.cylinders}
+        style={{ margin: "16px 0" }}
+        block
       >
         Scan QR Code
       </Button>
 
-      {/* ✅ QR Code Scanner Modal */}
       <Modal
-        title="Scan QR Codes"
-        open={scanning}
+        title="Scan Cylinder QR Code"
+        visible={scanning}
         onCancel={() => setScanning(false)}
         footer={null}
-        width={400}
+        destroyOnClose
       >
-        <div id="reader"></div>
-
-        {/* ✅ Show scanned cylinder ID */}
+        <div id="reader" style={{ position: "relative" }} />
         {currentScan && (
-          <div style={{ marginTop: "15px", textAlign: "center" }}>
-            <Text strong>Scanned Cylinder ID:</Text>
-            <p>{currentScan}</p>
+          <div style={{ textAlign: "center", marginTop: 16 }}>
+            <Text strong>Scanned Cylinder:</Text>
+            <Text code block style={{ fontSize: 18, margin: 8 }}>
+              {currentScan}
+            </Text>
+            <Button
+              type="primary"
+              onClick={handleAcceptScan}
+              style={{ marginRight: 8 }}
+            >
+              Confirm
+            </Button>
+            <Button onClick={() => setCurrentScan(null)}>Cancel</Button>
           </div>
         )}
-
-        {/* ✅ Control Buttons */}
-        <div style={{ marginTop: "15px", textAlign: "center" }}>
-          {/* Show "Next" if there's a scanned cylinder */}
-          {currentScan && (
-            <Button
-              type="primary"
-              onClick={() => {
-                setSelectedCylinders((prev) => [...prev, currentScan]);
-                setCurrentScan(null);
-                message.success("Scan another or click Done.");
-              }}
-            >
-              Next
-            </Button>
-          )}
-
-          {/* Show "Done" when user decides to stop */}
-          {selectedCylinders.length > 0 && (
-            <Button
-              type="primary"
-              onClick={() => setScanning(false)}
-              style={{ marginLeft: "10px" }}
-            >
-              Done
-            </Button>
-          )}
-
-          {/* Always show "Cancel" to exit without saving */}
-          <Button
-            type="default"
-            onClick={() => setScanning(false)}
-            style={{ marginLeft: "10px" }}
-          >
-            Cancel
-          </Button>
-        </div>
       </Modal>
 
       <Divider />
 
-      {/* ✅ Cylinder List with Clickable Cards */}
-      <Row gutter={[16, 16]}>
-        {dispatchedCylinders.map((cylinder) => (
-          <Col key={cylinder.serial_number} xs={24} sm={12} md={8}>
-            <Card
-              className={`cylinder-card ${
-                selectedCylinders.includes(cylinder.serial_number)
-                  ? "selected"
-                  : ""
-              }`}
-              onClick={() => toggleCylinderSelection(cylinder.serial_number)}
-              style={{
-                cursor: "pointer",
-                background: selectedCylinders.includes(cylinder.serial_number)
-                  ? "#1890ff"
-                  : "#f5f5f5",
-                color: selectedCylinders.includes(cylinder.serial_number)
-                  ? "#fff"
-                  : "#333",
-                fontWeight: "bold",
-                transition: "0.3s ease",
-                textAlign: "center",
-                padding: "15px",
-                borderRadius: "8px",
-              }}
-            >
-              {cylinder.serial_number}
-            </Card>
-            {/* ✅ "Not Empty" Toggle (Separate Below) */}
-            <div style={{ textAlign: "center", marginTop: "8px" }}>
-              <Switch
-                checked={notEmptyCylinders.includes(cylinder.serial_number)}
-                onChange={(checked) =>
-                  toggleNotEmpty(cylinder.serial_number, checked)
-                }
-              />
-              <Text style={{ marginLeft: "8px" }}>
-                {notEmptyCylinders.includes(cylinder.serial_number)
-                  ? "Not Empty"
-                  : "Empty"}
-              </Text>
-            </div>
-          </Col>
-        ))}
-      </Row>
+      <Spin spinning={loading.cylinders} tip="Loading cylinders...">
+        <Row gutter={[16, 16]}>
+          {dispatchedCylinders.map((cylinder) => (
+            <Col key={cylinder.serial_number} xs={24} sm={12} md={8}>
+              <Card
+                className={`cylinder-card ${
+                  selectedCylinders.has(cylinder.serial_number)
+                    ? "selected"
+                    : ""
+                }`}
+                onClick={() => {
+                  setSelectedCylinders((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(cylinder.serial_number)) {
+                      next.delete(cylinder.serial_number);
+                    } else {
+                      next.add(cylinder.serial_number);
+                    }
+                    return next;
+                  });
+                }}
+                hoverable
+              >
+                <Text strong>{cylinder.serial_number}</Text>
+                <div style={{ marginTop: 8 }}>
+                  <Switch
+                    checked={notEmptyCylinders.has(cylinder.serial_number)}
+                    onChange={(checked) => {
+                      setNotEmptyCylinders((prev) => {
+                        const next = new Set(prev);
+                        if (checked) {
+                          next.add(cylinder.serial_number);
+                        } else {
+                          next.delete(cylinder.serial_number);
+                        }
+                        return next;
+                      });
+                    }}
+                    aria-label={`Mark ${cylinder.serial_number} as not empty`}
+                  />
+                  <Text type="secondary" style={{ marginLeft: 8 }}>
+                    {notEmptyCylinders.has(cylinder.serial_number)
+                      ? "Not Empty"
+                      : "Empty"}
+                  </Text>
+                </div>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      </Spin>
 
       <Divider />
 
-      {/* ✅ Confirm Button */}
       <Button
         type="primary"
-        className="receive-button"
         icon={<DownloadOutlined />}
-        disabled={selectedCylinders.length === 0}
         onClick={handleConfirmReceive}
-        style={{ width: "100%", background: "#1890ff", borderColor: "#1890ff" }}
+        loading={loading.submitting}
+        disabled={selectedCylinders.size === 0}
+        block
+        size="large"
       >
-        Confirm Receive
+        {loading.submitting
+          ? "Processing..."
+          : `Confirm Receive (${selectedCylinders.size})`}
       </Button>
     </Card>
   );
