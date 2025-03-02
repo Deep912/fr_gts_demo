@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import {
   Select,
@@ -26,9 +26,9 @@ const Receive = () => {
   const [selectedCylinders, setSelectedCylinders] = useState([]);
   const [notEmptyCylinders, setNotEmptyCylinders] = useState([]);
   const [scanning, setScanning] = useState(false);
-  const [scannerInstance, setScannerInstance] = useState(null);
   const [currentScan, setCurrentScan] = useState(null);
   const [scannedIds, setScannedIds] = useState([]); // Temporary storage for scanned IDs
+  const scannerInstanceRef = useRef(null); // Use ref for scanner instance
 
   // Fetch Companies
   useEffect(() => {
@@ -69,18 +69,32 @@ const Receive = () => {
     if (!decodedText) return;
     const serialNumber = decodedText.trim();
 
-    // ✅ Prevent duplicate scans across both lists
+    // Prevent duplicate scans
     if (
-      selectedCylinders.includes(serialNumber) ||
-      scannedIds.includes(serialNumber)
+      scannedIds.includes(serialNumber) ||
+      selectedCylinders.includes(serialNumber)
     ) {
       message.warning(`Cylinder ${serialNumber} is already scanned.`);
       return;
     }
 
-    // ✅ Save scanned cylinder & STOP scanning
+    // Validate if the scanned ID exists in dispatched cylinders
+    const isValidCylinder = dispatchedCylinders.some(
+      (cylinder) => cylinder.serial_number === serialNumber
+    );
+
+    if (!isValidCylinder) {
+      message.error(`Cylinder ${serialNumber} not found in dispatched list.`);
+      return;
+    }
+
+    // Save the scanned cylinder and stop scanning
     setCurrentScan(serialNumber);
-    if (scannerInstance) scannerInstance.clear();
+    if (scannerInstanceRef.current) {
+      scannerInstanceRef.current.clear().catch((error) => {
+        console.error("Failed to clear scanner:", error);
+      });
+    }
   };
 
   // Start Scanner
@@ -97,78 +111,89 @@ const Receive = () => {
         qrbox: { width: 300, height: 300 },
       });
 
-      scanner.render(
-        (decodedText) => handleScan(decodedText),
-        (err) => console.warn("QR Scanner Error:", err)
-      );
+      scanner
+        .render(
+          (decodedText) => handleScan(decodedText),
+          (err) => console.warn("QR Scanner Error:", err)
+        )
+        .catch((error) => {
+          console.error("Scanner initialization failed:", error);
+          message.error(
+            "Failed to initialize scanner. Please check camera permissions."
+          );
+          setScanning(false);
+        });
 
-      setScannerInstance(scanner);
+      scannerInstanceRef.current = scanner;
     }
 
     return () => {
-      if (scannerInstance) {
-        scannerInstance.clear();
+      if (scannerInstanceRef.current) {
+        scannerInstanceRef.current.clear().catch((error) => {
+          console.error("Failed to clear scanner:", error);
+        });
       }
     };
   }, [scanning]);
 
   // Handle "Next" Button Click
-  // ✅ Handle "Next" Button Click
   const handleNext = () => {
     if (!currentScan) {
       message.warning("No cylinder scanned.");
       return;
     }
 
-    // ✅ Prevent duplicate scans across both lists
-    if (
-      selectedCylinders.includes(currentScan) ||
-      scannedIds.includes(currentScan)
-    ) {
-      message.warning(`Cylinder ${currentScan} is already scanned.`);
-      setCurrentScan(null); // Reset scan
-      return;
-    }
-
-    // ✅ Save the current scan and reset
+    // Save the current scan to the list of scanned IDs
     setScannedIds((prev) => [...prev, currentScan]);
     setCurrentScan(null); // Reset current scan
 
-    // ✅ Restart scanner (no need to recreate an instance)
-    if (scannerInstance) {
-      scannerInstance.clear();
-      scannerInstance.render(handleScan, handleScanError);
+    // Clear previous scanner
+    if (scannerInstanceRef.current) {
+      scannerInstanceRef.current.clear().catch((error) => {
+        console.error("Failed to clear scanner:", error);
+      });
     }
+
+    // Restart the scanner
+    const newScanner = new Html5QrcodeScanner("reader", {
+      fps: 10,
+      qrbox: { width: 300, height: 300 },
+    });
+    newScanner.render(handleScan, (err) =>
+      console.warn("QR Scanner Error:", err)
+    );
+    scannerInstanceRef.current = newScanner; // Update ref
   };
 
-  // ✅ Handle "Done" Button Click
+  // Handle "Done" Button Click
   const handleDone = () => {
     if (scannedIds.length === 0) {
       message.warning("No cylinders scanned.");
       return;
     }
 
-    // ✅ Move all scanned IDs to selectedCylinders
+    // Add all scanned IDs to the selectedCylinders list
     setSelectedCylinders((prev) => [...prev, ...scannedIds]);
-
-    // ✅ Reset scanner and modal
-    setScannedIds([]);
-    setCurrentScan(null);
-    setScanning(false);
-
-    if (scannerInstance) {
-      scannerInstance.clear();
-    }
+    setScannedIds([]); // Clear temporary scanned IDs
+    setScanning(false); // Close the scanner modal
   };
 
-  // ✅ Handle "Cancel" Button Click
+  // Handle "Cancel" Button Click
   const handleCancel = () => {
-    setScanning(false);
-    setScannedIds([]); // Clear temporary scanned IDs
-    setCurrentScan(null);
-
-    if (scannerInstance) {
-      scannerInstance.clear();
+    if (scannedIds.length > 0) {
+      Modal.confirm({
+        title: "Are you sure you want to cancel?",
+        content: "All scanned cylinders will be lost.",
+        onOk: () => {
+          setScanning(false);
+          setScannedIds([]);
+          setCurrentScan(null);
+        },
+      });
+    } else {
+      setScanning(false);
+      setScannedIds([]);
+      setCurrentScan(null);
     }
   };
 
