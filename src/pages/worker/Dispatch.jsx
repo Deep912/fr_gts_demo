@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import {
   Select,
+  Input,
   InputNumber,
   Button,
   Card,
@@ -15,20 +16,19 @@ import {
   UploadOutlined,
   SearchOutlined,
   ScanOutlined,
-  FilePdfOutlined, // from your original code
+  FilePdfOutlined,
 } from "@ant-design/icons";
 import { Html5QrcodeScanner } from "html5-qrcode";
+import { Grid } from "antd"; // For useBreakpoint
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import "../../styles/Dispatch.css";
 
-// ==================== Keep your SERVER_URL ====================
+// Keep your SERVER_URL
 const SERVER_URL = import.meta.env.VITE_API_URL;
 
 const Dispatch = () => {
-  console.log("DEBUG: Dispatch component loaded.");
-
-  // ===================== Original states from your code =====================
+  // ===================== States from your code =====================
   const [companies, setCompanies] = useState([]);
   const [companyId, setCompanyId] = useState(null);
   const [products, setProducts] = useState([]);
@@ -36,24 +36,30 @@ const Dispatch = () => {
   const [quantity, setQuantity] = useState(null);
   const [availableCylinders, setAvailableCylinders] = useState([]);
   const [selectedCylinders, setSelectedCylinders] = useState(new Set());
-
   const [step, setStep] = useState(1);
 
-  // Possibly from your older code
+  // Possibly from older code
   const [dispatchCompleted, setDispatchCompleted] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
 
-  // ===================== Single-scan approach states =====================
+  // Single-scan approach states
   const [scanning, setScanning] = useState(false);
   const [currentScan, setCurrentScan] = useState(null);
   const [tempScannedCylinders, setTempScannedCylinders] = useState([]);
-  // This new state shows a big warning in the modal if code is a duplicate
   const [duplicateWarning, setDuplicateWarning] = useState(false);
 
-  // hold scanner instance
+  // For storing the scanner instance
   const scannerRef = useRef(null);
 
-  // ============ 1) Fetch Companies (ngrok skip) =============
+  // ===================== New: useBreakpoint for screen size =====================
+  const screens = Grid.useBreakpoint();
+  // If md isn't true, that means screen < 768 => treat as mobile/tablet
+  const isMobileOrTablet = !screens.md;
+
+  // For desktop searching
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // ===================== 1) Fetch Companies (with ngrok skip) =====================
   useEffect(() => {
     axios
       .get(`${SERVER_URL}/companies`, {
@@ -66,7 +72,7 @@ const Dispatch = () => {
       .catch(() => message.error("Failed to load companies."));
   }, []);
 
-  // ============ 2) Fetch Products (ngrok skip) =============
+  // ===================== 2) Fetch Products (with ngrok skip) =====================
   useEffect(() => {
     axios
       .get(`${SERVER_URL}/products`, {
@@ -79,7 +85,7 @@ const Dispatch = () => {
       .catch(() => message.error("Failed to load cylinder types."));
   }, []);
 
-  // ============ 3) Fetch Available Cylinders (ngrok skip) =============
+  // ===================== 3) Fetch Available Cylinders =====================
   const fetchAvailableCylinders = async () => {
     if (!selectedProduct || !quantity) {
       message.warning("Please select a cylinder type and quantity.");
@@ -100,6 +106,7 @@ const Dispatch = () => {
         message.warning("No cylinders available for this selection.");
         return;
       }
+
       setAvailableCylinders(res.data);
       setSelectedCylinders(new Set());
       setStep(2);
@@ -108,7 +115,7 @@ const Dispatch = () => {
     }
   };
 
-  // ============ 4) Toggle Cylinder Selection =============
+  // ===================== 4) Toggle Cylinder Selection =====================
   const toggleCylinderSelection = (serialNumber) => {
     setSelectedCylinders((prev) => {
       const updated = new Set(prev);
@@ -121,7 +128,7 @@ const Dispatch = () => {
     });
   };
 
-  // ============ 5) Start Single-Scan =============
+  // ===================== 5) Single-scan approach =====================
   const startScanner = () => {
     if (!quantity) {
       message.warning("Please enter a quantity before scanning.");
@@ -133,9 +140,7 @@ const Dispatch = () => {
     setDuplicateWarning(false);
   };
 
-  /*******************************************************
-   * (5A) handleScan - with explicit on-screen duplicate warning
-   *******************************************************/
+  // handleScan + duplicates
   const handleScan = (decodedText) => {
     if (!decodedText) return;
     const serialNumber = decodedText.trim();
@@ -151,7 +156,7 @@ const Dispatch = () => {
       }
       setCurrentScan(serialNumber);
       setDuplicateWarning(true);
-      return; // Stop here
+      return;
     }
 
     // Otherwise normal flow
@@ -167,9 +172,6 @@ const Dispatch = () => {
     console.warn("handleScanError ->", error);
   };
 
-  /*******************************************************
-   * (5B) acceptCurrentScan -> Next button
-   *******************************************************/
   const acceptCurrentScan = () => {
     if (!currentScan) {
       message.warning("No cylinder scanned.");
@@ -184,7 +186,7 @@ const Dispatch = () => {
       message.error(`Cylinder ${currentScan} is already scanned!`);
       setCurrentScan(null);
 
-      // re-render so user can try scanning different code
+      // re-init
       if (scannerRef.current) {
         scannerRef.current.clear();
         scannerRef.current.render(handleScan, handleScanError);
@@ -212,18 +214,6 @@ const Dispatch = () => {
     }
   };
 
-  /*******************************************************
-   * (5C) If duplicateWarning is true, user can click "Re-scan"
-   *******************************************************/
-  const handleRescan = () => {
-    setDuplicateWarning(false);
-    setCurrentScan(null);
-    if (scannerRef.current) {
-      scannerRef.current.clear();
-      scannerRef.current.render(handleScan, handleScanError);
-    }
-  };
-
   const finalizeScanning = () => {
     setSelectedCylinders(new Set(tempScannedCylinders));
     setScanning(false);
@@ -239,9 +229,7 @@ const Dispatch = () => {
     setDuplicateWarning(false);
   };
 
-  /*******************************************************
-   * (5D) Scanner effect
-   *******************************************************/
+  // Initialize the scanner
   useEffect(() => {
     if (!scanning) return;
 
@@ -261,7 +249,7 @@ const Dispatch = () => {
     };
   }, [scanning]);
 
-  // ============ 6) Confirm Dispatch =============
+  // ===================== 6) Confirm Dispatch =====================
   const handleConfirmDispatch = async () => {
     if (!companyId) {
       message.warning("Please select a company.");
@@ -312,7 +300,6 @@ const Dispatch = () => {
       setSelectedProduct(null);
       setQuantity(null);
 
-      // keep old references
       setDispatchCompleted(true);
       setShowSummary(false);
     } catch (error) {
@@ -320,7 +307,7 @@ const Dispatch = () => {
     }
   };
 
-  // ============ 7) generateReceipt =============
+  // ===================== 7) generateReceipt =====================
   const generateReceipt = (payload) => {
     const doc = new jsPDF();
     doc.setFontSize(18);
@@ -345,7 +332,18 @@ const Dispatch = () => {
     doc.save(`Dispatch_Receipt_${payload.transactionId}.pdf`);
   };
 
-  // ============ Return full JSX =============
+  // ===================== Searching for Desktop =====================
+  // Only used if !isMobileOrTablet. Let's store the user’s search term
+
+  // If we’re on desktop, filter the availableCylinders by searchTerm
+  // If we’re on mobile, we show them all
+  const displayedCylinders = isMobileOrTablet
+    ? availableCylinders
+    : availableCylinders.filter((cyl) =>
+        cyl.serial_number.includes(searchTerm)
+      );
+
+  // ============ Return Full JSX =============
   return (
     <Card className="dispatch-card">
       <h2 className="dispatch-title">
@@ -354,7 +352,7 @@ const Dispatch = () => {
 
       <Space
         direction="vertical"
-        style={{ width: "100%", paddingBottom: "15px" }}
+        style={{ width: "100%", paddingBottom: "20px" }}
       >
         <label>Select Company:</label>
         <Select
@@ -362,7 +360,7 @@ const Dispatch = () => {
           onChange={setCompanyId}
           value={companyId}
           placeholder="Choose a company"
-          style={{ width: "100%" }}
+          style={{ width: "100%", marginBottom: "10px" }}
         >
           {companies.map((co) => (
             <Select.Option key={co.id} value={co.id}>
@@ -377,7 +375,7 @@ const Dispatch = () => {
           onChange={setSelectedProduct}
           value={selectedProduct}
           placeholder="Choose a cylinder type"
-          style={{ width: "100%" }}
+          style={{ width: "100%", marginBottom: "10px" }}
         >
           {products.map((prod) => (
             <Select.Option key={prod} value={prod}>
@@ -391,12 +389,12 @@ const Dispatch = () => {
           min={1}
           value={quantity}
           onChange={setQuantity}
-          style={{ width: "100%" }}
+          style={{ width: "100%", marginBottom: "10px" }}
         />
 
-        {/* Buttons */}
-        <Row gutter={[16, 16]} style={{ marginBottom: "10px" }}>
-          <Col span={12}>
+        {/* Buttons row */}
+        <Row gutter={[16, 16]} style={{ marginBottom: "20px" }}>
+          <Col xs={24} md={12}>
             <Button
               type="primary"
               icon={<SearchOutlined />}
@@ -406,24 +404,34 @@ const Dispatch = () => {
               Fetch Cylinders
             </Button>
           </Col>
-          <Col span={12}>
-            <Button
-              type="default"
-              icon={<ScanOutlined />}
-              block
-              onClick={startScanner}
-            >
-              Scan QR Code
-            </Button>
+
+          <Col xs={24} md={12}>
+            {/* if mobile => show scan button, if desktop => show search bar */}
+            {isMobileOrTablet ? (
+              <Button
+                type="default"
+                icon={<ScanOutlined />}
+                block
+                onClick={startScanner}
+              >
+                Scan QR Code
+              </Button>
+            ) : (
+              <Input
+                placeholder="Search Cylinder ID"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                allowClear
+              />
+            )}
           </Col>
         </Row>
 
         {/* Single-scan Modal */}
         <Modal open={scanning} onCancel={closeScanner} footer={null}>
           <h3>QR Code Scanner</h3>
-          <div id="reader"></div>
+          <div id="reader" style={{ width: "100%", height: "auto" }}></div>
 
-          {/* If we have a duplicate */}
           {duplicateWarning && currentScan && (
             <div style={{ marginTop: 16, color: "red" }}>
               <p>You scanned the same QR code: {currentScan}</p>
@@ -443,7 +451,6 @@ const Dispatch = () => {
             </div>
           )}
 
-          {/* Normal flow for non-duplicate */}
           {!duplicateWarning && currentScan && (
             <>
               <p>
@@ -463,7 +470,7 @@ const Dispatch = () => {
                 Done
               </Button>
             )}
-            <Button type="default" onClick={closeScanner}>
+            <Button style={{ marginLeft: 8 }} onClick={closeScanner}>
               Close
             </Button>
           </div>
@@ -472,8 +479,15 @@ const Dispatch = () => {
         {/* If step=2, show cylinder cards */}
         {step === 2 && (
           <Row gutter={[16, 16]} style={{ marginTop: "10px" }}>
-            {availableCylinders.map((cyl) => (
-              <Col span={6} key={cyl.serial_number}>
+            {displayedCylinders.map((cyl) => (
+              <Col
+                key={cyl.serial_number}
+                xs={12}
+                sm={12}
+                md={8}
+                lg={6}
+                style={{ marginBottom: "10px" }}
+              >
                 <Card
                   hoverable
                   onClick={() => toggleCylinderSelection(cyl.serial_number)}
@@ -500,6 +514,7 @@ const Dispatch = () => {
           block
           onClick={handleConfirmDispatch}
           disabled={step !== 2}
+          style={{ marginTop: "10px" }}
         >
           Confirm Dispatch
         </Button>
