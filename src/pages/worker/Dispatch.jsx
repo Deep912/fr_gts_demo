@@ -47,7 +47,6 @@ const Dispatch = () => {
   const [scanning, setScanning] = useState(false);
   const [currentScan, setCurrentScan] = useState(null);
   const [tempScannedCylinders, setTempScannedCylinders] = useState([]);
-
   // This new state shows a big warning in the modal if code is a duplicate
   const [duplicateWarning, setDuplicateWarning] = useState(false);
 
@@ -163,6 +162,7 @@ const Dispatch = () => {
     setDuplicateWarning(false);
     message.info(`Scanned: ${serialNumber}`);
   };
+
   const handleScanError = (error) => {
     console.warn("handleScanError ->", error);
   };
@@ -320,15 +320,6 @@ const Dispatch = () => {
     }
   };
 
-  const reRenderScanner = () => {
-    setDuplicateWarning(false);
-    setCurrentScan(null);
-    if (scannerRef.current) {
-      scannerRef.current.clear();
-      scannerRef.current.render(handleScan, handleScanError);
-    }
-  };
-
   // ============ 7) generateReceipt =============
   const generateReceipt = (payload) => {
     const doc = new jsPDF();
@@ -436,7 +427,17 @@ const Dispatch = () => {
           {duplicateWarning && currentScan && (
             <div style={{ marginTop: 16, color: "red" }}>
               <p>You scanned the same QR code: {currentScan}</p>
-              <Button type="primary" onClick={reRenderScanner}>
+              <Button
+                type="primary"
+                onClick={() => {
+                  setDuplicateWarning(false);
+                  setCurrentScan(null);
+                  if (scannerRef.current) {
+                    scannerRef.current.clear();
+                    scannerRef.current.render(handleScan, handleScanError);
+                  }
+                }}
+              >
                 Re-Scan
               </Button>
             </div>
@@ -448,11 +449,24 @@ const Dispatch = () => {
               <p>
                 <strong>Scanned Cylinder ID:</strong> {currentScan}
               </p>
-              {/* Next or Done logic */}
+              {tempScannedCylinders.length < quantity && (
+                <Button type="primary" onClick={acceptCurrentScan}>
+                  Next
+                </Button>
+              )}
             </>
           )}
 
-          {/* The rest of your Done / Cancel logic */}
+          <div style={{ marginTop: "15px" }}>
+            {tempScannedCylinders.length === quantity && !duplicateWarning && (
+              <Button type="primary" onClick={finalizeScanning}>
+                Done
+              </Button>
+            )}
+            <Button type="default" onClick={closeScanner}>
+              Close
+            </Button>
+          </div>
         </Modal>
 
         {/* If step=2, show cylinder cards */}
