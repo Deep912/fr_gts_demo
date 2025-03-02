@@ -36,6 +36,7 @@ const Dispatch = () => {
   const [quantity, setQuantity] = useState(null);
   const [availableCylinders, setAvailableCylinders] = useState([]);
   const [selectedCylinders, setSelectedCylinders] = useState(new Set());
+
   const [step, setStep] = useState(1);
 
   // Possibly from your older code
@@ -140,22 +141,21 @@ const Dispatch = () => {
     if (!decodedText) return;
     const serialNumber = decodedText.trim();
 
-    // Merge partial scans + final chosen set
+    // Merge partial + final
     const combined = new Set(tempScannedCylinders);
     selectedCylinders.forEach((sn) => combined.add(sn));
 
     if (combined.has(serialNumber)) {
-      // Duplicate -> show big on-screen warning
-      setDuplicateWarning(true);
-      setCurrentScan(serialNumber);
-
+      // It's a duplicate
       if (scannerRef.current) {
         scannerRef.current.clear();
       }
-      return;
+      setCurrentScan(serialNumber);
+      setDuplicateWarning(true);
+      return; // Stop here
     }
 
-    // Not a duplicate -> accept but pause scanning
+    // Otherwise normal flow
     if (scannerRef.current) {
       scannerRef.current.clear();
     }
@@ -163,7 +163,6 @@ const Dispatch = () => {
     setDuplicateWarning(false);
     message.info(`Scanned: ${serialNumber}`);
   };
-
   const handleScanError = (error) => {
     console.warn("handleScanError ->", error);
   };
@@ -321,6 +320,15 @@ const Dispatch = () => {
     }
   };
 
+  const reRenderScanner = () => {
+    setDuplicateWarning(false);
+    setCurrentScan(null);
+    if (scannerRef.current) {
+      scannerRef.current.clear();
+      scannerRef.current.render(handleScan, handleScanError);
+    }
+  };
+
   // ============ 7) generateReceipt =============
   const generateReceipt = (payload) => {
     const doc = new jsPDF();
@@ -422,55 +430,29 @@ const Dispatch = () => {
         {/* Single-scan Modal */}
         <Modal open={scanning} onCancel={closeScanner} footer={null}>
           <h3>QR Code Scanner</h3>
-          <div id="reader" style={{ width: "100%", height: "auto" }}></div>
+          <div id="reader"></div>
 
-          {/* If we have a scanned cylinder paused */}
-          {currentScan && !duplicateWarning && (
-            <>
-              <p>
-                <strong>Scanned Cylinder ID:</strong> {currentScan}
-              </p>
-              {tempScannedCylinders.length < quantity && (
-                <Button type="primary" onClick={acceptCurrentScan}>
-                  Next
-                </Button>
-              )}
-            </>
-          )}
-
-          {/* If we have a duplicate code => show big warning on screen */}
+          {/* If we have a duplicate */}
           {duplicateWarning && currentScan && (
-            <div style={{ marginTop: 16 }}>
-              <p style={{ color: "red", fontWeight: "bold" }}>
-                You scanned a duplicate code: {currentScan}
-              </p>
-              <p>Please scan a different cylinder.</p>
-              <Button
-                type="primary"
-                onClick={() => {
-                  setDuplicateWarning(false);
-                  setCurrentScan(null);
-                  if (scannerRef.current) {
-                    scannerRef.current.clear();
-                    scannerRef.current.render(handleScan, handleScanError);
-                  }
-                }}
-              >
+            <div style={{ marginTop: 16, color: "red" }}>
+              <p>You scanned the same QR code: {currentScan}</p>
+              <Button type="primary" onClick={reRenderScanner}>
                 Re-Scan
               </Button>
             </div>
           )}
 
-          <div style={{ marginTop: "15px" }}>
-            {tempScannedCylinders.length === quantity && !duplicateWarning && (
-              <Button type="primary" onClick={finalizeScanning}>
-                Done
-              </Button>
-            )}
-            <Button style={{ marginLeft: 8 }} onClick={closeScanner}>
-              Close
-            </Button>
-          </div>
+          {/* Normal flow for non-duplicate */}
+          {!duplicateWarning && currentScan && (
+            <>
+              <p>
+                <strong>Scanned Cylinder ID:</strong> {currentScan}
+              </p>
+              {/* Next or Done logic */}
+            </>
+          )}
+
+          {/* The rest of your Done / Cancel logic */}
         </Modal>
 
         {/* If step=2, show cylinder cards */}
