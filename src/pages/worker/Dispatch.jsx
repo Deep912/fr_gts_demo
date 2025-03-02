@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import {
   Select,
@@ -16,7 +15,6 @@ import {
   UploadOutlined,
   SearchOutlined,
   ScanOutlined,
-  FilePdfOutlined,
 } from "@ant-design/icons";
 import { Html5QrcodeScanner } from "html5-qrcode";
 import jsPDF from "jspdf";
@@ -26,47 +24,53 @@ import "../../styles/Dispatch.css";
 const SERVER_URL = import.meta.env.VITE_API_URL;
 
 const Dispatch = () => {
+  // ========= State for fetching data ========
   const [companies, setCompanies] = useState([]);
   const [companyId, setCompanyId] = useState(null);
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
+
+  // ========= Dispatch flow states =========
   const [quantity, setQuantity] = useState(null);
   const [availableCylinders, setAvailableCylinders] = useState([]);
-  const [selectedCylinders, setSelectedCylinders] = useState(new Set());
+  const [selectedCylinders, setSelectedCylinders] = useState(new Set()); // final selection
   const [step, setStep] = useState(1);
-  const [scanning, setScanning] = useState(false);
+
+  // ========= Scanner states & logic ========
+  const [scanning, setScanning] = useState(false); // toggles modal
   const [currentScan, setCurrentScan] = useState(null);
-  const [tempScannedCylinders, setTempScannedCylinders] = useState([]); // Temporary storage before confirmation
+  const [tempScannedCylinders, setTempScannedCylinders] = useState([]);
+  const scannerRef = useRef(null);
 
-  const [dispatchCompleted, setDispatchCompleted] = useState(false);
-
-  // ✅ Fetch Companies
+  // ======================= 1) Fetch Companies =======================
   useEffect(() => {
     axios
       .get(`${SERVER_URL}/companies`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "ngrok-skip-browser-warning": "true",
-        },
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       })
-      .then((response) => setCompanies(response.data))
-      .catch(() => message.error("Failed to load companies."));
+      .then((res) => {
+        setCompanies(res.data);
+      })
+      .catch(() => {
+        message.error("Failed to load companies.");
+      });
   }, []);
 
-  // ✅ Fetch Cylinder Products
+  // ======================= 2) Fetch Cylinder Products =======================
   useEffect(() => {
     axios
       .get(`${SERVER_URL}/products`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "ngrok-skip-browser-warning": "true",
-        },
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       })
-      .then((response) => setProducts(response.data))
-      .catch(() => message.error("Failed to load cylinder types."));
+      .then((res) => {
+        setProducts(res.data);
+      })
+      .catch(() => {
+        message.error("Failed to load cylinder types.");
+      });
   }, []);
 
-  // ✅ Fetch Available Cylinders
+  // ======================= 3) Fetch Available Cylinders =======================
   const fetchAvailableCylinders = async () => {
     if (!selectedProduct || !quantity) {
       message.warning("Please select a cylinder type and quantity.");
@@ -74,143 +78,135 @@ const Dispatch = () => {
     }
 
     try {
-      const response = await axios.get(
+      const res = await axios.get(
         `${SERVER_URL}/available-cylinders?product=${selectedProduct}&quantity=${quantity}`,
         {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-            "ngrok-skip-browser-warning": "true",
-          },
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
       );
-
-      if (response.data.length === 0) {
+      if (!Array.isArray(res.data) || res.data.length === 0) {
         message.warning("No cylinders available for this selection.");
         return;
       }
-
-      setAvailableCylinders(response.data);
-      setSelectedCylinders(new Set()); // ✅ Clear selection on refresh
+      setAvailableCylinders(res.data);
+      setSelectedCylinders(new Set());
       setStep(2);
     } catch (error) {
       message.error("Error fetching available cylinders.");
     }
   };
 
-  // ✅ Toggle Cylinder Selection (Now Works)
+  // ======================= 4) Toggle Cylinder Selection =======================
   const toggleCylinderSelection = (serialNumber) => {
-    setSelectedCylinders((prevSelected) => {
-      const newSelection = new Set(prevSelected);
-      if (newSelection.has(serialNumber)) {
-        newSelection.delete(serialNumber);
-      } else {
-        if (newSelection.size < quantity) newSelection.add(serialNumber);
+    setSelectedCylinders((prev) => {
+      const updated = new Set(prev);
+      if (updated.has(serialNumber)) {
+        updated.delete(serialNumber);
+      } else if (updated.size < quantity) {
+        updated.add(serialNumber);
       }
-      return newSelection;
+      return updated;
     });
   };
 
-  // ✅ Start QR Scanner
+  // ======================= 5) Scanner: Single-Scan Approach =======================
   const startScanner = () => {
+    if (!quantity) {
+      message.warning("Please enter a quantity first.");
+      return;
+    }
     setScanning(true);
-    setTempScannedCylinders([]); // Reset temp list
+    setTempScannedCylinders([]);
     setCurrentScan(null);
   };
 
-  // ✅ Handle Scanned QR Code (Scans One at a Time)
+  // single QR code read
   const handleScan = (decodedText) => {
     if (!decodedText) return;
     const serialNumber = decodedText.trim();
 
-    // ❌ Prevent duplicate scans
+    // prevent duplicates
     if (tempScannedCylinders.includes(serialNumber)) {
       message.error(`Cylinder ${serialNumber} is already scanned!`);
       return;
     }
-
+    // pause scanning
+    if (scannerRef.current) {
+      scannerRef.current.clear();
+    }
     setCurrentScan(serialNumber);
+    message.info(`Scanned: ${serialNumber}`);
   };
 
-  // ✅ Accept Current Scan & Move to Next
-  // ✅ Accept Current Scan & Move to Next
+  const handleScanError = (error) => {
+    console.warn("QR Scanner Error:", error);
+  };
+
   const acceptCurrentScan = () => {
     if (!currentScan) {
       message.warning("No cylinder scanned.");
       return;
     }
-
+    // check duplicates
     if (tempScannedCylinders.includes(currentScan)) {
       message.error(`Cylinder ${currentScan} is already scanned!`);
       return;
     }
 
-    const updatedScannedCylinders = [...tempScannedCylinders, currentScan];
-    setTempScannedCylinders(updatedScannedCylinders);
+    const updated = [...tempScannedCylinders, currentScan];
+    setTempScannedCylinders(updated);
     setCurrentScan(null);
 
-    if (updatedScannedCylinders.length < quantity) {
+    // if not done, re-launch scanner
+    if (updated.length < quantity) {
       message.success(
-        `Cylinder ${currentScan} scanned. Please scan the next one.`
+        `Cylinder ${currentScan} accepted. Please scan the next one.`
       );
+      if (scannerRef.current) {
+        scannerRef.current.clear();
+        scannerRef.current.render(handleScan, handleScanError);
+      }
     } else {
       message.success(
-        "All required cylinders scanned! Click 'Done' to proceed."
+        "All required cylinders scanned! Click 'Done' to finalize."
       );
     }
   };
 
-  // ✅ Finalize Scanning & Select Cylinders
   const finalizeScanning = () => {
+    // move them to final set
     setSelectedCylinders(new Set(tempScannedCylinders));
     setScanning(false);
     message.success("Cylinders selected successfully!");
   };
 
-  // ✅ Close Scanner Without Selection
   const closeScanner = () => {
     setScanning(false);
     setTempScannedCylinders([]);
     setCurrentScan(null);
   };
 
-  // ✅ Effect to Start Scanner
+  // scanner effect
   useEffect(() => {
-    let scanner;
+    if (!scanning) return;
 
-    if (scanning) {
-      try {
-        setTimeout(() => {
-          scanner = new Html5QrcodeScanner("reader", {
-            fps: 10,
-            qrbox: { width: 300, height: 300 },
-            disableFlip: false,
-          });
-
-          scanner.render(
-            (decodedText) => {
-              handleScan(decodedText); // Process scanned QR
-            },
-            (err) => {
-              console.warn("QR Scanner Error:", err);
-            }
-          );
-        }, 500);
-      } catch (error) {
-        console.error("Camera Initialization Error:", error);
-        message.error("Failed to access camera. Please check permissions.");
-        setScanning(false);
-      }
-    }
+    setTimeout(() => {
+      const scanner = new Html5QrcodeScanner("reader", {
+        fps: 10,
+        qrbox: { width: 300, height: 300 },
+      });
+      scanner.render(handleScan, handleScanError);
+      scannerRef.current = scanner;
+    }, 500);
 
     return () => {
-      if (scanner) {
-        scanner.clear();
+      if (scannerRef.current) {
+        scannerRef.current.clear();
       }
     };
   }, [scanning]);
 
-  // ✅ Confirm Dispatch
-
+  // ======================= 6) Confirm Dispatch =======================
   const handleConfirmDispatch = async () => {
     if (!companyId) {
       message.warning("Please select a company.");
@@ -227,12 +223,15 @@ const Dispatch = () => {
 
     const transactionId = `TXN-${Date.now()}`;
     const transactionDate = new Date().toLocaleString();
-    const selectedCompany =
-      companies.find((c) => c.id === companyId)?.name || "Unknown";
+    const companyObj = companies.find((c) => c.id === companyId);
+    const selectedCompany = companyObj ? companyObj.name : "Unknown";
+
+    // convert set -> array
+    const serialNumbers = Array.from(selectedCylinders);
 
     const payload = {
       transactionId,
-      serialNumbers: Array.from(selectedCylinders),
+      serialNumbers,
       companyId,
       selectedCompany,
       selectedProduct,
@@ -246,62 +245,54 @@ const Dispatch = () => {
       });
 
       message.success("Cylinders Dispatched Successfully!");
-
-      // ✅ Generate and download PDF receipt
       generateReceipt(payload);
 
-      // ✅ Reset form after dispatch
+      // reset
       setStep(1);
       setSelectedCylinders(new Set());
       setAvailableCylinders([]);
       setCompanyId(null);
       setSelectedProduct(null);
       setQuantity(null);
-      setShowSummary(false); // Close modal after dispatch
     } catch (error) {
       message.error("Error dispatching cylinders.");
     }
   };
 
+  // ======================= 7) Generate PDF Receipt =======================
   const generateReceipt = (payload) => {
     const doc = new jsPDF();
-
-    // 🔷 Title
     doc.setFontSize(18);
     doc.text("Cylinder Dispatch Receipt", 70, 10);
 
-    // 🔷 Transaction Details
-    const selectedCompany =
+    const compName =
       companies.find((c) => c.id === payload.companyId)?.name ||
       "Unknown Company";
+
     doc.setFontSize(12);
     doc.text(`Transaction ID: ${payload.transactionId}`, 10, 20);
-    doc.text(`Company: ${selectedCompany}`, 10, 30);
+    doc.text(`Company: ${compName}`, 10, 30);
     doc.text(`Cylinder Type: ${payload.selectedProduct}`, 10, 40);
     doc.text(`Quantity: ${payload.quantity}`, 10, 50);
     doc.text(`Date: ${payload.date}`, 10, 60);
 
-    // 🔷 Table for Cylinder Serial Numbers
     doc.autoTable({
       startY: 70,
       head: [["#", "Serial Number"]],
-      body: payload.serialNumbers.map((serial, index) => [index + 1, serial]),
+      body: payload.serialNumbers.map((sn, idx) => [idx + 1, sn]),
     });
 
-    // 🔷 Save the PDF
     doc.save(`Dispatch_Receipt_${payload.transactionId}.pdf`);
   };
 
+  // ======================= Return JSX =======================
   return (
     <Card className="dispatch-card">
       <h2 className="dispatch-title">
         <UploadOutlined /> Dispatch Cylinders
       </h2>
 
-      <Space
-        direction="vertical"
-        style={{ width: "100%", paddingBottom: "15px" }}
-      >
+      <Space direction="vertical" style={{ width: "100%" }}>
         <label>Select Company:</label>
         <Select
           showSearch
@@ -310,9 +301,9 @@ const Dispatch = () => {
           placeholder="Choose a company"
           style={{ width: "100%" }}
         >
-          {companies.map((company) => (
-            <Select.Option key={company.id} value={company.id}>
-              {company.name}
+          {companies.map((comp) => (
+            <Select.Option key={comp.id} value={comp.id}>
+              {comp.name}
             </Select.Option>
           ))}
         </Select>
@@ -325,9 +316,9 @@ const Dispatch = () => {
           placeholder="Choose a cylinder type"
           style={{ width: "100%" }}
         >
-          {products.map((product) => (
-            <Select.Option key={product} value={product}>
-              {product}
+          {products.map((prod) => (
+            <Select.Option key={prod} value={prod}>
+              {prod}
             </Select.Option>
           ))}
         </Select>
@@ -340,8 +331,8 @@ const Dispatch = () => {
           style={{ width: "100%" }}
         />
 
-        {/* ✅ Fetch and Scan Buttons */}
-        <Row gutter={[16, 16]} style={{ marginBottom: "10px" }}>
+        {/* Buttons */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 10 }}>
           <Col span={12}>
             <Button
               type="primary"
@@ -364,21 +355,20 @@ const Dispatch = () => {
           </Col>
         </Row>
 
-        {/* ✅ QR Scanner Modal */}
-        <Modal open={scanning} onCancel={closeScanner} footer={null}>
-          <h3>QR Code Scanner</h3>
-
-          {/* ✅ QR Scanner UI */}
+        {/* QR Scanner Modal */}
+        <Modal
+          title="QR Code Scanner"
+          open={scanning}
+          onCancel={closeScanner}
+          footer={null}
+        >
           <div id="reader" style={{ width: "100%", height: "auto" }}></div>
 
-          {/* ✅ Show the last scanned Cylinder ID */}
           {currentScan && (
             <>
               <p>
                 <strong>Scanned Cylinder ID:</strong> {currentScan}
               </p>
-
-              {/* ✅ Show "Next" until the required quantity is scanned */}
               {tempScannedCylinders.length < quantity && (
                 <Button type="primary" onClick={acceptCurrentScan}>
                   Next
@@ -387,47 +377,43 @@ const Dispatch = () => {
             </>
           )}
 
-          <div style={{ marginTop: "15px" }}>
-            {/* ✅ Show "Done" after scanning required quantity */}
+          <div style={{ marginTop: 10 }}>
             {tempScannedCylinders.length === quantity && (
               <Button type="primary" onClick={finalizeScanning}>
                 Done
               </Button>
             )}
-
-            {/* ✅ Always show "Close" to cancel scanning */}
-            <Button type="default" onClick={closeScanner}>
-              Close
+            <Button style={{ marginLeft: 8 }} onClick={closeScanner}>
+              Cancel
             </Button>
           </div>
         </Modal>
 
-        {/* ✅ Cylinders Display as Cards (Now Clickable) */}
+        {/* Cylinders Display (Step 2) */}
         {step === 2 && (
-          <Row gutter={[16, 16]} style={{ marginTop: "10px" }}>
-            {availableCylinders.map((cylinder) => (
-              <Col span={6} key={cylinder.serial_number}>
+          <Row gutter={[16, 16]} style={{ marginTop: 10 }}>
+            {availableCylinders.map((cyl) => (
+              <Col span={6} key={cyl.serial_number}>
                 <Card
                   hoverable
-                  onClick={() =>
-                    toggleCylinderSelection(cylinder.serial_number)
-                  }
+                  onClick={() => toggleCylinderSelection(cyl.serial_number)}
                   style={{
-                    background: selectedCylinders.has(cylinder.serial_number)
+                    background: selectedCylinders.has(cyl.serial_number)
                       ? "#3e95cd"
                       : "#fff",
-                    color: selectedCylinders.has(cylinder.serial_number)
+                    color: selectedCylinders.has(cyl.serial_number)
                       ? "#fff"
                       : "#000",
                   }}
                 >
-                  <h3>{cylinder.serial_number}</h3>
+                  <h3>{cyl.serial_number}</h3>
                 </Card>
               </Col>
             ))}
           </Row>
         )}
 
+        {/* Confirm Dispatch */}
         <Button
           type="primary"
           icon={<UploadOutlined />}
