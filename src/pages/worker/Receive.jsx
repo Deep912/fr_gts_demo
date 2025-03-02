@@ -113,18 +113,10 @@ const Receive = () => {
         qrbox: { width: 300, height: 300 },
       });
 
-      scanner
-        .render(
-          (decodedText) => handleScan(decodedText),
-          (err) => console.warn("QR Scanner Error:", err)
-        )
-        .catch((error) => {
-          console.error("Scanner initialization failed:", error);
-          message.error(
-            "Failed to initialize scanner. Please check camera permissions."
-          );
-          setScanning(false);
-        });
+      scanner.render(
+        (decodedText) => handleScan(decodedText),
+        (err) => console.warn("QR Scanner Error:", err)
+      );
 
       scannerInstanceRef.current = scanner;
     }
