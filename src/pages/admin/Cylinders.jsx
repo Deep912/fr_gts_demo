@@ -28,12 +28,16 @@ const Cylinders = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [showDeleted, setShowDeleted] = useState(false);
 
-  // 🔹 Modal States
+  // Modal States
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
   const [cylinderId, setCylinderId] = useState("");
 
-  // 🔹 Fetch Active and Deleted Cylinders
+  // Predefined gas types and capacities (must match server allowed values)
+  const gasTypes = ["LPG", "CNG", "Other"];
+  const capacities = [5, 10, 20];
+
+  // Fetch Active and Deleted Cylinders
   useEffect(() => {
     loadCylinders();
     loadDeletedCylinders();
@@ -68,8 +72,7 @@ const Cylinders = () => {
   };
 
   const handleDelete = (serial_number) => {
-    console.log("Deleting Cylinder:", serial_number); // Debugging
-
+    console.log("Deleting Cylinder:", serial_number);
     axios
       .post(
         `${SERVER_URL}/admin/delete-cylinder`,
@@ -93,8 +96,7 @@ const Cylinders = () => {
   };
 
   const handleRestore = (serial_number) => {
-    console.log("Restoring Cylinder:", serial_number); // Debugging log
-
+    console.log("Restoring Cylinder:", serial_number);
     axios
       .post(
         `${SERVER_URL}/admin/restore-cylinder`,
@@ -118,8 +120,7 @@ const Cylinders = () => {
   };
 
   const handleChangeStatus = (serial_number, status) => {
-    console.log(`Updating status for ${serial_number} to ${status}`); // Debugging
-
+    console.log(`Updating status for ${serial_number} to ${status}`);
     axios
       .post(
         `${SERVER_URL}/admin/update-cylinder-status`,
@@ -141,7 +142,7 @@ const Cylinders = () => {
       });
   };
 
-  // 🔹 Generate Cylinder ID
+  // Generate Cylinder ID from server
   const generateCylinderId = async () => {
     try {
       const response = await axios.get(
@@ -154,18 +155,19 @@ const Cylinders = () => {
         }
       );
       setCylinderId(response.data.new_id);
-      form.setFieldsValue({ serial_number: response.data.new_id }); // ✅ Set form value
+      form.setFieldsValue({ serial_number: response.data.new_id });
     } catch (error) {
       message.error("Error generating cylinder ID");
     }
   };
 
-  // 🔹 Add Cylinder
+  // Add Cylinder - adding default "available" status
   const handleAddCylinder = (values) => {
-    console.log("Submitting Cylinder:", values); // ✅ Debugging log
+    console.log("Submitting Cylinder:", values);
+    const payload = { ...values, status: "available" };
 
     axios
-      .post(`${SERVER_URL}/admin/add-cylinder`, values, {
+      .post(`${SERVER_URL}/admin/add-cylinder`, payload, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "ngrok-skip-browser-warning": "true",
@@ -190,7 +192,10 @@ const Cylinders = () => {
         <Button
           type="primary"
           icon={<PlusOutlined />}
-          onClick={() => setIsModalVisible(true)}
+          onClick={() => {
+            setIsModalVisible(true);
+            generateCylinderId();
+          }}
         >
           Add Cylinder
         </Button>
@@ -278,6 +283,54 @@ const Cylinders = () => {
               ]),
         ]}
       />
+      {/* Modal for Adding a New Cylinder */}
+      <Modal
+        title="Add New Cylinder"
+        visible={isModalVisible}
+        onCancel={() => setIsModalVisible(false)}
+        footer={null}
+      >
+        <Form form={form} onFinish={handleAddCylinder}>
+          <Form.Item
+            name="serial_number"
+            label="Cylinder ID"
+            rules={[{ required: true, message: "Cylinder ID is required" }]}
+          >
+            <Input disabled />
+          </Form.Item>
+          <Form.Item
+            name="gas_type"
+            label="Gas Type"
+            rules={[{ required: true, message: "Please select a gas type" }]}
+          >
+            <Select placeholder="Select a gas type">
+              {gasTypes.map((gas) => (
+                <Option key={gas} value={gas}>
+                  {gas}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item
+            name="size"
+            label="Capacity (L)"
+            rules={[{ required: true, message: "Please select the capacity" }]}
+          >
+            <Select placeholder="Select capacity">
+              {capacities.map((cap) => (
+                <Option key={cap} value={cap}>
+                  {cap} L
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit">
+              Add Cylinder
+            </Button>
+          </Form.Item>
+        </Form>
+      </Modal>
     </Card>
   );
 };
