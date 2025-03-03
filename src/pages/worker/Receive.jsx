@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+
 import axios from "axios";
 import {
   Select,
@@ -235,6 +238,7 @@ const Receive = () => {
   };
 
   // ✅ Confirm Receive
+  // ✅ Confirm Receive
   const handleConfirmReceive = () => {
     if (selectedCylinders.length === 0) {
       message.warning("Please select at least one cylinder");
@@ -252,6 +256,11 @@ const Receive = () => {
             notEmptyCylinders.includes(sn)
           ),
           companyId,
+          // Added extra details for logging purposes
+          details: {
+            source: "Receive Page",
+            scannedCount: selectedCylinders.length,
+          },
         },
         {
           headers: {
@@ -262,6 +271,26 @@ const Receive = () => {
       )
       .then(() => {
         message.success("Selected cylinders received successfully!");
+        const transactionId = `RCV-${Date.now()}`;
+        const transactionDate = new Date().toLocaleString();
+        const receiptPayload = {
+          transactionId,
+          companyId,
+          date: transactionDate,
+          emptySerialNumbers: selectedCylinders.filter(
+            (sn) => !notEmptyCylinders.includes(sn)
+          ),
+          filledSerialNumbers: selectedCylinders.filter((sn) =>
+            notEmptyCylinders.includes(sn)
+          ),
+        };
+        generateReceiveReceipt(receiptPayload);
+
+        setSelectedCylinders([]);
+        setNotEmptyCylinders([]);
+        setDispatchedCylinders((prev) =>
+          prev.filter((cyl) => !selectedCylinders.includes(cyl.serial_number))
+        );
         setSelectedCylinders([]);
         setNotEmptyCylinders([]);
         setDispatchedCylinders((prev) =>
@@ -269,6 +298,40 @@ const Receive = () => {
         );
       })
       .catch(() => message.error("Error receiving cylinders"));
+  };
+
+  const generateReceiveReceipt = (payload) => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text("Cylinder Receive Receipt", 70, 10);
+    const company = companies.find((c) => c.id === payload.companyId);
+    const cName = company ? company.name : "Unknown Company";
+    doc.setFontSize(12);
+    doc.text(`Transaction ID: ${payload.transactionId}`, 10, 20);
+    doc.text(`Company: ${cName}`, 10, 30);
+    doc.text(`Date: ${payload.date}`, 10, 40);
+
+    // Empty cylinders table
+    doc.text("Empty Cylinders:", 10, 50);
+    if (payload.emptySerialNumbers && payload.emptySerialNumbers.length > 0) {
+      doc.autoTable({
+        startY: 55,
+        head: [["#", "Serial Number"]],
+        body: payload.emptySerialNumbers.map((sn, idx) => [idx + 1, sn]),
+      });
+    }
+    let currentY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 55;
+    currentY += 10;
+    // Filled cylinders table
+    doc.text("Filled Cylinders:", 10, currentY);
+    if (payload.filledSerialNumbers && payload.filledSerialNumbers.length > 0) {
+      doc.autoTable({
+        startY: currentY + 5,
+        head: [["#", "Serial Number"]],
+        body: payload.filledSerialNumbers.map((sn, idx) => [idx + 1, sn]),
+      });
+    }
+    doc.save(`Receive_Receipt_${payload.transactionId}.pdf`);
   };
 
   // NEW: We'll store a desktop searchTerm & filter if not mobile
