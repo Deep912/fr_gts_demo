@@ -271,6 +271,12 @@ const Dispatch = () => {
 
     const serialNumbers = Array.from(selectedCylinders);
 
+    // Added extra details for logging purposes
+    const details = {
+      source: "Dispatch Page",
+      scannedCount: serialNumbers.length,
+    };
+
     const payload = {
       transactionId,
       serialNumbers,
@@ -279,6 +285,7 @@ const Dispatch = () => {
       selectedProduct,
       quantity,
       date: transactionDate,
+      details, // <-- new field added
     };
 
     try {
