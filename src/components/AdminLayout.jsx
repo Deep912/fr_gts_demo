@@ -168,6 +168,11 @@ const AdminLayout = () => {
               icon: <BarChartOutlined />,
               label: "Reports",
             },
+            {
+              key: "/admin/add-user",
+              icon: <UserOutlined />,
+              label: "Add User",
+            },
           ]}
         />
       </Sider>

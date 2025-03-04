@@ -16,6 +16,7 @@ import Receive from "./pages/worker/Receive";
 import Refill from "./pages/worker/Refill";
 import CompleteRefill from "./pages/worker/CompleteRefill";
 import TestScanner from "./TestScanner";
+import AdminAddUser from "./pages/admin/AdminAddUser";
 
 const App = () => {
   const [role, setRole] = useState(localStorage.getItem("role") || null);
@@ -48,6 +49,7 @@ const App = () => {
           <Route path="cylinders" element={<Cylinders />} />
           <Route path="companies" element={<Companies />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="add-user" element={<AdminAddUser />} />
         </Route>
 
         {/* ✅ Worker Routes - No Redirect to /dispatch */}
