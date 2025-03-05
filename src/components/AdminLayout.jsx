@@ -19,6 +19,7 @@ import {
   LogoutOutlined,
   UserOutlined,
   MenuOutlined,
+  AuditOutlined, // Make sure this icon is available; if not, choose another appropriate icon
 } from "@ant-design/icons";
 import axios from "axios";
 import "../styles/AdminLayout.css";
@@ -31,6 +32,7 @@ const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const username = localStorage.getItem("username") || "Admin";
+  const role = localStorage.getItem("role"); // retrieve role from localStorage
 
   // Sidebar state & responsiveness
   const [collapsed, setCollapsed] = useState(window.innerWidth < 768);
@@ -112,6 +114,45 @@ const AdminLayout = () => {
     window.location.reload();
   };
 
+  // Build menu items with conditional Audit Logs item
+  const menuItems = [
+    {
+      key: "/admin",
+      icon: <DashboardOutlined />,
+      label: "Dashboard",
+    },
+    {
+      key: "/admin/cylinders",
+      icon: <DatabaseOutlined />,
+      label: "Cylinders",
+    },
+    {
+      key: "/admin/companies",
+      icon: <ApartmentOutlined />,
+      label: "Companies",
+    },
+    {
+      key: "/admin/reports",
+      icon: <BarChartOutlined />,
+      label: "Reports",
+    },
+    {
+      key: "/admin/add-user",
+      icon: <UserOutlined />,
+      label: "Add User",
+    },
+    // Only show Audit Logs for owners
+    ...(role === "owner"
+      ? [
+          {
+            key: "/admin/audit-logs",
+            icon: <AuditOutlined />,
+            label: "Audit Logs",
+          },
+        ]
+      : []),
+  ];
+
   return (
     <Layout style={{ minHeight: "100vh" }}>
       {/* Sidebar */}
@@ -147,33 +188,7 @@ const AdminLayout = () => {
           mode="inline"
           selectedKeys={[location.pathname]}
           onClick={handleMenuClick}
-          items={[
-            {
-              key: "/admin",
-              icon: <DashboardOutlined />,
-              label: "Dashboard",
-            },
-            {
-              key: "/admin/cylinders",
-              icon: <DatabaseOutlined />,
-              label: "Cylinders",
-            },
-            {
-              key: "/admin/companies",
-              icon: <ApartmentOutlined />,
-              label: "Companies",
-            },
-            {
-              key: "/admin/reports",
-              icon: <BarChartOutlined />,
-              label: "Reports",
-            },
-            {
-              key: "/admin/add-user",
-              icon: <UserOutlined />,
-              label: "Add User",
-            },
-          ]}
+          items={menuItems}
         />
       </Sider>
 

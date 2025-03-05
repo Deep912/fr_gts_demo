@@ -17,6 +17,7 @@ import Refill from "./pages/worker/Refill";
 import CompleteRefill from "./pages/worker/CompleteRefill";
 import TestScanner from "./TestScanner";
 import AdminAddUser from "./pages/admin/AdminAddUser";
+import AuditLogs from "./pages/admin/AuditLogs";
 
 const App = () => {
   const [role, setRole] = useState(localStorage.getItem("role") || null);
@@ -43,13 +44,18 @@ const App = () => {
         <Route
           path="/admin/*"
           element={
-            role === "admin" ? <AdminLayout /> : <Navigate to="/" replace />
+            role === "admin" || role === "owner" ? (
+              <AdminLayout />
+            ) : (
+              <Navigate to="/" replace />
+            )
           }
         >
           <Route path="cylinders" element={<Cylinders />} />
           <Route path="companies" element={<Companies />} />
           <Route path="reports" element={<Reports />} />
           <Route path="add-user" element={<AdminAddUser />} />
+          <Route path="audit-logs" element={<AuditLogs />} />
         </Route>
 
         {/* ✅ Worker Routes - No Redirect to /dispatch */}

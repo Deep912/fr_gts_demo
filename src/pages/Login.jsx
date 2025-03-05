@@ -30,7 +30,10 @@ const Login = () => {
 
         // Redirect based on user role
         setTimeout(() => {
-          if (response.data.user.role === "admin") {
+          if (
+            response.data.user.role === "admin" ||
+            response.data.user.role === "owner"
+          ) {
             window.location.href = "/admin";
           } else {
             window.location.href = "/worker/";
